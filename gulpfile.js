@@ -1,11 +1,7 @@
 var gulp = require('gulp');
 var RSBundler = require('@redsift/redsift-bundler');
 
-//////////////////////////////////////////
-// Redsift Sift frontend library building
-//////////////////////////////////////////
-
-var bundleConfig = require('./sift-base.config.js');
+var bundleConfig = require('./sift-sdk-web.config.js');
 
 gulp.task('bundle-js',  RSBundler.loadTask(gulp, 'bundle-js',  bundleConfig));
 

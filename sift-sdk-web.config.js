@@ -7,29 +7,29 @@ var paths = {
 var defaultConfig = {
   formats: ['es6', 'umd'],
   outputFolder: paths.dest,
-  moduleNameJS: 'Sift',
+  moduleNameJS: 'Redsift',
   mapsDest: '.',
   externalMappings: {},
   useNormalizeCSS: true
 }
 
-var siftBaseConfig = {
+var sdkConfig = {
   mainJS: {
-    name: 'sift-base',
+    name: 'sift-sdk-web',
     indexFile: './src/index.js'
   }
 };
 
-var siftBaseTestConfig = {
+var testConfig = {
   mainJS: {
-    name: 'sift-base-test',
+    name: 'sift-sdk-web-test',
     indexFile: './test/test-app.js'
   }
 };
 
 var bundles = [
-  merge(defaultConfig, siftBaseConfig),
-  merge(defaultConfig, siftBaseTestConfig)
+  merge(defaultConfig, sdkConfig),
+  merge(defaultConfig, testConfig)
 ];
 
 module.exports = bundles;
