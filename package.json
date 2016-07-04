@@ -1,0 +1,20 @@
+{
+  "name": "sift-base",
+  "version": "0.1.0",
+  "description": "Sift frontend base library.",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "gulp build",
+    "test": "node dist/js/sift-base-test.umd-es2015.js"
+  },
+  "keywords": [
+    "redsift",
+    "sift",
+    "frontend"
+  ],
+  "author": "Martin Hecher <martin@redsift.io>",
+  "license": "MIT",
+  "devDependencies": {
+    "@redsift/redsift-bundler": "^0.2.1"
+  }
+}
