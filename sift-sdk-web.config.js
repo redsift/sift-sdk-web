@@ -9,27 +9,26 @@ var defaultConfig = {
   outputFolder: paths.dest,
   moduleNameJS: 'Redsift',
   mapsDest: '.',
-  externalMappings: {},
-  useNormalizeCSS: true
+  externalMappings: {}
 }
 
 var sdkConfig = {
   mainJS: {
-    name: 'sift-sdk-web',
-    indexFile: './src/index.js'
+    name: 'sift-sdk',
+    indexFile: './src/sdk.js'
   }
 };
 
-var testConfig = {
+var runtimeConfig = {
   mainJS: {
-    name: 'sift-sdk-web-test',
-    indexFile: './test/test-app.js'
+    name: 'sift-runtime',
+    indexFile: './src/runtime.js'
   }
 };
 
 var bundles = [
   merge(defaultConfig, sdkConfig),
-  merge(defaultConfig, testConfig)
+  merge(defaultConfig, runtimeConfig)
 ];
 
 module.exports = bundles;

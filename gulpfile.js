@@ -10,4 +10,8 @@ gulp.task('build', ['bundle-js'], function(cb) {
   RSBundler.printBundleSummary(bundleConfig);
 });
 
-gulp.task('default', ['build']);
+gulp.task('watch', function() {
+  gulp.watch(['./src/**/*.js'], ['bundle-js']);
+});
+
+gulp.task('default', ['build', 'watch']);
