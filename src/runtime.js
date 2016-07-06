@@ -1,6 +1,5 @@
 import ObservableSingleton from './lib/observable-singleton.js';
 import EmitterSingleton from './lib/emitter-singleton.js';
-import MessageBus from './lib/message-bus';
 
 let Redsift = window.Redsift || {};
 
@@ -45,7 +44,6 @@ window.addEventListener('message', function (event) {
       }
       break;
     case 'notifyView':
-    debugger;
       Redsift.Runtime.observable.notifyObservers(event.data.params.topic, event.data.params.value);
       break;
     default:

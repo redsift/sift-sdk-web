@@ -1,17 +1,20 @@
-export default class SiftControllerWorker {
-    constructor(messageBus) {
-      this.messageBus = messageBus;
+import ObservableSingleton from './observable-singleton.js';
+import EmitterSingleton from './emitter-singleton.js';
+import MessageBus from './message-bus';
+
+export default class ControllerMessageBus {
+    constructor() {
+        this._observable = Redsift.Runtime.observable;
+        this._emitter = Redsift.Runtime.emitter;
+        this.messageBus = MessageBus;
     }
 
-    notifyListeners(topic, value) {
-      console.log('controller_worker: Sift.Controller.notifyListeners: ', topic, value);
-      this.messageBus.postMessage({
-        method: 'notifyView',
-        params: {
-          topic: topic,
-          value: value
-        }
-      });
+    addEventListener(topic, listener) {
+        this._observable.addObserver(topic, listener);
+    }
+
+    removeEventListener(topic, listener) {
+        this._observable.removeObserver(topic, listener);
     }
 
     loadData(params) {
@@ -24,7 +27,6 @@ export default class SiftControllerWorker {
                     resolve(params.result);
                 }
             });
-
             this.messageBus.postMessage({
                 method: 'loadData',
                 params: params,
