@@ -1,6 +1,24 @@
-export default class SiftControllerWorker {
-    setMessageBus(messageBus) {
+import SiftStorage from './sift-storage';
+
+export default class SiftController {
+    constructor() {
+      // Create a 'shallow' storage instance. The storage is initialized via 'initStorage()' by the controller_worker
+      // after the worker is initialized. Subscribe handlers can be registered before the storage is initialized. The
+      // handlers will be wired up correctly after the observable becomes available in the storage instance.
+      const observable = null;
+      this.storage = new SiftStorage(observable);
+    }
+
+    initMessageBus(messageBus) {
       this.messageBus = messageBus;
+    }
+
+    initStorage(observable) {
+      this.storage.setObservable(observable);
+    }
+
+    setStorageAPIInstance(treo) {
+      this.storage.setAPIInstance(treo) ;
     }
 
     subscribe(eventName, handler) {
@@ -9,8 +27,8 @@ export default class SiftControllerWorker {
       });
     }
 
-    notifyListeners(topic, value) {
-      console.log('controller_worker: Sift.ControllerWorker.notifyListeners: ', topic, value);
+    publish(topic, value) {
+      console.log('[SiftController::publish] ', topic, value);
       if (!this.messageBus) {
         throw new Error('[SiftControllerWorker] no message bus defined. Messages will NOT be forwarded to the Sift view!');
       }
