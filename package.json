@@ -1,13 +1,11 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "private": true,
   "version": "0.1.0",
-  "description": "Frontend Sift SDK for web.",
+  "description": "SDK for developing web-based Sifts.",
   "main": "dist/js/sift-sdk.umd-es2015.min.js",
   "jsnext:main": "src/sdk.js",
   "scripts": {
-    "build": "gulp build",
-    "test": "node dist/js/sift-sdk-web-test.umd-es2015.js"
+    "build": "gulp build"
   },
   "keywords": [
     "redsift",
@@ -15,7 +13,7 @@
     "frontend"
   ],
   "author": "Martin Hecher <martin@redsift.io>",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@redsift/redsift-bundler": "^0.2.1"
   }
