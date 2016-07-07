@@ -1,7 +1,9 @@
 /**
  * iOS-specific initialisation (for Webkit)
  */
+
 var parentWindow = parent;
+
 if (parentWindow === window) { // assume iOS here since we should never be run as a standalone page
   parentWindow = {};
   parentWindow.postMessage = function (data, origin) {
