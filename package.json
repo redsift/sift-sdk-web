@@ -1,6 +1,6 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "SDK for developing web-based Sifts.",
   "main": "dist/js/sift-sdk.umd-es2015.min.js",
   "jsnext:main": "src/sdk.js",
