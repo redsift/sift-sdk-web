@@ -58,7 +58,7 @@ export default class SiftController {
 
     loadData(params) {
         return new Promise((resolve, reject) => {
-            const uuid = _emitter.reserveUUID(function(params) {
+            const uuid = this._emitter.reserveUUID(function(params) {
                 this._emitter.removeAllListeners(uuid);
                 if (params.error) {
                     reject(params.error);
