@@ -7,11 +7,21 @@ export default class SiftController {
       // handlers will be wired up correctly after the observable becomes available in the storage instance.
       const observable = null;
       this.storage = new SiftStorage(observable);
+
+      this.viewSubscriptionWaitingList = [];
     }
 
     initMessageBus(messageBus) {
       this.messageBus = messageBus;
     }
+
+    setView(siftView) {
+      this.view = siftView;
+      this.viewSubscriptionWaitingList.forEach((item) => {
+        this.view.addEventListener(item.eventName, item.handler);
+      });
+      this.viewSubscriptionWaitingList = [];
+    };
 
     initStorage(observable) {
       this.storage.setObservable(observable);
@@ -22,9 +32,13 @@ export default class SiftController {
     }
 
     subscribe(eventName, handler) {
-      Sift.View.addEventListener(eventName, function(value) {
-        handler(value);
-      });
+      if (!this.view) {
+        this.viewSubscriptionWaitingList.push({ eventName: eventName, handler: handler });
+      } else {
+        this.view.addEventListener(eventName, function(value) {
+            handler(value);
+        });
+      }
     }
 
     publish(topic, value) {
