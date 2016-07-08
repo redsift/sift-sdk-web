@@ -19,6 +19,14 @@ export default class SiftView {
     });
   }
 
+  publish(topic, value) {
+    this.controllerPublishBus.postMessage({ method: 'notifyController', params: { topic: topic, value: value } }, '*');
+  }
+
+  loadData(params) {
+    return this.controllerSubscribeBus.loadData(params);
+  }
+
   registerOnLoadHandler(handler) {
     window.addEventListener('load', handler);
   }
@@ -28,7 +36,7 @@ export default class SiftView {
       if (isTouchDevice()) {
         return;
       }
-      
+
       if (!this.resizeHandler) {
         this.resizeHandler = setTimeout(() => {
           this.resizeHandler = null;
@@ -49,8 +57,4 @@ export default class SiftView {
 
     return popupAllowed;
   }
-
-  notifyListeners(topic, value) {
-    this.controllerPublishBus.postMessage({ method: 'notifyController', params: { topic: topic, value: value } }, '*');
-  };
 }

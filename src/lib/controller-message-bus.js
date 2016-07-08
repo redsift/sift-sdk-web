@@ -27,7 +27,7 @@ export default class ControllerMessageBus {
                     resolve(params.result);
                 }
             });
-            this.messageBus.postMessage({
+            this.messageBus.postMessage({ // this.messageBus === parentWindow
                 method: 'loadData',
                 params: params,
                 uuid: uuid
