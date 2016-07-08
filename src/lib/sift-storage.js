@@ -1,6 +1,6 @@
 export default class SiftStorage {
     constructor() {
-        // NOTE: The observable datastructure is provided by our runtime and correctly wired up to provide the subscribe/dispose functionality.
+        // NOTE: The observable datastructure is provided by our runtime and correctly wired up to provide the subscribe/unsubscribe functionality.
         // all storage messages (i.e. updates).
         this.observable = null;
 
@@ -33,8 +33,8 @@ export default class SiftStorage {
         }
     }
 
-    dispose(topic, handler) {
-        rslog.trace('SiftStorage: dispose: ', topic);
+    unsubscribe(topic, handler) {
+        rslog.trace('SiftStorage: unsubscribe: ', topic);
         this.observable.removeObserver(topic, handler);
     }
 
