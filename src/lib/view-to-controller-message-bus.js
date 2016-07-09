@@ -1,12 +1,21 @@
 export default class ViewToControllerMessageBus {
-  constructor() {
+  constructor(emitter, observable) {
     this.bus = this._setupBus();
-    this._emitter = Redsift.Runtime.emitter;
+    this._emitter = emitter;
+    this._observable = observable;
   }
 
   // Publishes a generic message to the Sift Controller.
   publish(data, origin) {
     this.bus.postMessage(data, origin);
+  }
+
+  subscribe(topic, listener) {
+      this._observable.addObserver(topic, listener);
+  }
+
+  unsubscribe(topic, listener) {
+      this._observable.removeObserver(topic, listener);
   }
 
   // Publishes a 'loadData' message to the Controller and returns the data

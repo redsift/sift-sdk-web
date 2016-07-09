@@ -6,11 +6,11 @@ export default class ControllerMessageBus {
         this._observable = Redsift.Runtime.observable;
     }
 
-    addEventListener(topic, listener) {
+    subscribe(topic, listener) {
         this._observable.addObserver(topic, listener);
     }
 
-    removeEventListener(topic, listener) {
+    unsubscribe(topic, listener) {
         this._observable.removeObserver(topic, listener);
     }
 }

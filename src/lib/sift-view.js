@@ -1,11 +1,11 @@
-import ControllerViewPostMessageBus from './controller-message-bus';
+// import ControllerViewPostMessageBus from './controller-message-bus';
 import ViewToControllerMessageBus from './view-to-controller-message-bus';
 import { isTouchDevice } from './utils'
 
 export default class SiftView {
-  constructor(parentWindow) {
-    this.viewToControllerMessageBus = new ViewToControllerMessageBus();
-    this.controllerSubscribeBus = new ControllerViewPostMessageBus();
+  constructor() {
+    this.viewToControllerMessageBus = new ViewToControllerMessageBus(Redsift.Runtime.emitter, Redsift.Runtime.observable);
+    // this.controllerSubscribeBus = new ControllerViewPostMessageBus();
 
     this.popupAllowed = this._isPopupAllowed(this.viewToControllerMessageBus);
     this.resizeHandler = null;
@@ -13,7 +13,7 @@ export default class SiftView {
 
   subscribe(eventName, handler) {
     window.addEventListener('load', () => {
-      this.controllerSubscribeBus.addEventListener(eventName, handler);
+      this.viewToControllerMessageBus.subscribe(eventName, handler);
     });
   }
 
