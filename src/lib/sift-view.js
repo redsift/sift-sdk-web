@@ -1,26 +1,26 @@
-import ViewToControllerMessageBus from './view-to-controller-message-bus';
+import ViewToControllerEventBus from './view-to-controller-event-bus';
 import { isTouchDevice } from './utils'
 
 export default class SiftView {
   constructor() {
-    this.viewToControllerMessageBus = new ViewToControllerMessageBus(this);
+    this.ViewToControllerEventBus = new ViewToControllerEventBus(this);
 
-    this.popupAllowed = this._isPopupAllowed(this.viewToControllerMessageBus);
+    this.popupAllowed = this._isPopupAllowed(this.ViewToControllerEventBus);
     this.resizeHandler = null;
   }
 
   subscribe(eventName, handler) {
     window.addEventListener('load', () => {
-      this.viewToControllerMessageBus.subscribe(eventName, handler);
+      this.ViewToControllerEventBus.subscribe(eventName, handler);
     });
   }
 
   publish(topic, value) {
-    this.viewToControllerMessageBus.publish({ method: 'notifyController', params: { topic: topic, value: value } }, '*');
+    this.ViewToControllerEventBus.publish({ method: 'notifyController', params: { topic: topic, value: value } }, '*');
   }
 
   loadData(params) {
-    return this.viewToControllerMessageBus.loadData(params);
+    return this.ViewToControllerEventBus.loadData(params);
   }
 
   registerOnLoadHandler(handler) {

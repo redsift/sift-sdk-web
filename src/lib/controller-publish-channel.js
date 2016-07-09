@@ -1,7 +1,7 @@
 import ObservableSingleton from './observable-singleton.js';
 import EmitterSingleton from './emitter-singleton.js';
 
-export default class ControllerMessageListener {
+export default class ControllerPublishChannel {
   constructor() {
     // For a Sift running in an IFrame the 'parentWindow' is the
     // IFrame, which is available as 'parent'

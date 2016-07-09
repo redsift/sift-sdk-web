@@ -2,13 +2,10 @@ import ObservableSingleton from './observable-singleton.js';
 import EmitterSingleton from './emitter-singleton.js';
 
 export default class ControllerSubscribeChannel {
-  constructor(siftView) {
-    this.siftView = siftView;
-
+  constructor() {
     this.observable = new ObservableSingleton();
     this.emitter = new EmitterSingleton();
-
-    this._setup();
+    this.siftView = null;
   }
 
   subscribe(topic, handler) {
@@ -19,8 +16,9 @@ export default class ControllerSubscribeChannel {
     this.observable.removeObserver(topic, handler);
   }
 
-  _setup() {
+  setupEventListener(siftView) {
     let that = this;
+    this.siftView = siftView;
 
     // listens to messages from the controller_worker (which runs the injected frontend/controller.js)
     window.addEventListener('message', function(event) {

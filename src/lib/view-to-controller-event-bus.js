@@ -1,9 +1,11 @@
 import ControllerSubscribeChannel from './controller-subscribe-channel';
 import ControllerPublishChannel from './controller-publish-channel';
 
-export default class ViewToControllerMessageBus {
+export default class ViewToControllerEventBus {
   constructor(siftView) {
-    this.controllerSubscribeChannel = new ControllerSubscribeChannel(siftView);
+    this.controllerSubscribeChannel = new ControllerSubscribeChannel();
+    this.controllerSubscribeChannel.setupEventListener(siftView);
+
     this.controllerPublishChannel = new ControllerPublishChannel();
   }
 
