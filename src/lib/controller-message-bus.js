@@ -1,12 +1,9 @@
-import ObservableSingleton from './observable-singleton.js';
-import EmitterSingleton from './emitter-singleton.js';
-import MessageBus from './message-bus';
+import ViewToControllerMessageBus from './view-to-controller-message-bus';
 
 export default class ControllerMessageBus {
     constructor() {
+        this.viewToControllerMessageBus = new ViewToControllerMessageBus();
         this._observable = Redsift.Runtime.observable;
-        this._emitter = Redsift.Runtime.emitter;
-        this.messageBus = MessageBus;
     }
 
     addEventListener(topic, listener) {
@@ -15,23 +12,5 @@ export default class ControllerMessageBus {
 
     removeEventListener(topic, listener) {
         this._observable.removeObserver(topic, listener);
-    }
-
-    loadData(params) {
-        return new Promise((resolve, reject) => {
-            const uuid = this._emitter.reserveUUID((params) => {
-                this._emitter.removeAllListeners(uuid);
-                if (params.error) {
-                    reject(params.error);
-                } else {
-                    resolve(params.result);
-                }
-            });
-            this.messageBus.postMessage({ // this.messageBus === parentWindow
-                method: 'loadData',
-                params: params,
-                uuid: uuid
-            }, '*');
-        });
     }
 }

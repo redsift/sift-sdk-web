@@ -1,30 +1,28 @@
-import ControllerMessageBus from './controller-message-bus';
-import MessageBus from './message-bus';
+import ControllerViewPostMessageBus from './controller-message-bus';
+import ViewToControllerMessageBus from './view-to-controller-message-bus';
 import { isTouchDevice } from './utils'
 
 export default class SiftView {
   constructor(parentWindow) {
-    // FIXXME: unify controllerPublishBus and controllerSubscribeBus!
-    this.controllerPublishBus = MessageBus;
-    this.controllerSubscribeBus = new ControllerMessageBus();
+    this.viewToControllerMessageBus = new ViewToControllerMessageBus();
+    this.controllerSubscribeBus = new ControllerViewPostMessageBus();
 
+    this.popupAllowed = this._isPopupAllowed(this.viewToControllerMessageBus);
     this.resizeHandler = null;
-    // this.popupAllowed = this._isPopupAllowed(parentWindow);
   }
 
   subscribe(eventName, handler) {
-    // Set up communication with the SiftController:
     window.addEventListener('load', () => {
       this.controllerSubscribeBus.addEventListener(eventName, handler);
     });
   }
 
   publish(topic, value) {
-    this.controllerPublishBus.postMessage({ method: 'notifyController', params: { topic: topic, value: value } }, '*');
+    this.viewToControllerMessageBus.publish({ method: 'notifyController', params: { topic: topic, value: value } }, '*');
   }
 
   loadData(params) {
-    return this.controllerSubscribeBus.loadData(params);
+    return this.viewToControllerMessageBus.loadData(params);
   }
 
   registerOnLoadHandler(handler) {

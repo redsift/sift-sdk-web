@@ -11,8 +11,8 @@ export default class SiftController {
       this.viewSubscriptionWaitingList = [];
     }
 
-    initMessageBus(messageBus) {
-      this.messageBus = messageBus;
+    setMessageBus(controllerWorkerMessageBus) {
+      this.controllerWorkerMessageBus = controllerWorkerMessageBus;
     }
 
     setView(siftView) {
@@ -43,11 +43,11 @@ export default class SiftController {
 
     publish(topic, value) {
       console.log('[SiftController::publish] ', topic, value);
-      if (!this.messageBus) {
+      if (!this.controllerWorkerMessageBus) {
         throw new Error('[SiftControllerWorker] no message bus defined. Messages will NOT be forwarded to the Sift view!');
       }
 
-      this.messageBus.postMessage({
+      this.controllerWorkerMessageBus.postMessage({
         method: 'notifyView',
         params: {
           topic: topic,
@@ -67,7 +67,7 @@ export default class SiftController {
                 }
             });
 
-            this.messageBus.postMessage({
+            this.controllerWorkerMessageBus.postMessage({
                 method: 'loadData',
                 params: params,
                 uuid: uuid

@@ -1,5 +1,9 @@
-export default class SiftStorage {
-    constructor() {
+import Logger from './logger';
+
+export default class SiftStorage extends Logger {
+    constructor(log) {
+        super(log);
+
         // NOTE: The observable datastructure is provided by our runtime and correctly wired up to provide the subscribe/unsubscribe functionality.
         // all storage messages (i.e. updates).
         this.observable = null;
@@ -14,7 +18,7 @@ export default class SiftStorage {
     }
 
     subscribe(topic, handler) {
-        rslog.trace('SiftStorage: subsribe: ', topic);
+        this.logger.trace('[SiftStorage] subsribe: ', topic);
         // Some more info about the isArray check: http://web.mit.edu/jwalden/www/isArray.html
         if (Array.isArray(topic)) {
             topic.forEach(function(t) {
@@ -34,16 +38,26 @@ export default class SiftStorage {
     }
 
     unsubscribe(topic, handler) {
-        rslog.trace('SiftStorage: unsubscribe: ', topic);
+        this.logger.trace('[SiftStorage] unsubsribe: ', topic);
         this.observable.removeObserver(topic, handler);
     }
 
+    // NOTE: kept only for legacy code in Sifts and controller_worker.js
+    addUpdateListener(topic, handler) {
+        this.subscribe(topic, handler)
+    }
+
+    // NOTE: kept only for legacy code in Sifts and controller_worker.js
+    removeUpdateListener(topic, handler) {
+        this.unsubscribe(topic, handler)
+    }
+
     setObservable(observable) {
-      this.observable = observable;
-      this.observableWaitingList.forEach((item) => {
-        this.observable.addObserver(item.topic, item.handler);
-      });
-      this.observableWaitingList = [];
+        this.observable = observable;
+        this.observableWaitingList.forEach((item) => {
+          this.observable.addObserver(item.topic, item.handler);
+        });
+        this.observableWaitingList = [];
     }
 
     setAPIInstance(treo) {

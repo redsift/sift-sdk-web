@@ -1,10 +1,9 @@
 import SiftController from './lib/sift-controller.js';
 import SiftStorage from './lib/sift-storage.js';
-import SiftView from './lib/sift-view.js';
 
 export { SiftController };
 export { SiftStorage };
-export { SiftView };
+export { default as SiftView } from './lib/sift-view.js';
 
 // FIXXME: using the global namespace to register a Sift is not optimal
 export function registerSiftView(siftView) {
