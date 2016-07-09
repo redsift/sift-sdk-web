@@ -1,8 +1,12 @@
+import ObservableSingleton from './observable-singleton.js';
+import EmitterSingleton from './emitter-singleton.js';
+
 export default class ViewToControllerMessageBus {
-  constructor(emitter, observable) {
+  constructor(siftView) {
+    this.siftView = siftView;
+
+    this.runtime = this._setupRuntime();
     this.bus = this._setupBus();
-    this._emitter = emitter;
-    this._observable = observable;
   }
 
   // Publishes a generic message to the Sift Controller.
@@ -11,19 +15,19 @@ export default class ViewToControllerMessageBus {
   }
 
   subscribe(topic, listener) {
-      this._observable.addObserver(topic, listener);
+      this.observable.addObserver(topic, listener);
   }
 
   unsubscribe(topic, listener) {
-      this._observable.removeObserver(topic, listener);
+      this.observable.removeObserver(topic, listener);
   }
 
   // Publishes a 'loadData' message to the Controller and returns the data
   // specified in params.
   loadData(params) {
     return new Promise((resolve, reject) => {
-      const uuid = this._emitter.reserveUUID((params) => {
-        this._emitter.removeAllListeners(uuid);
+      const uuid = this.emitter.reserveUUID((params) => {
+        this.emitter.removeAllListeners(uuid);
         if (params.error) {
           reject(params.error);
         } else {
@@ -36,6 +40,40 @@ export default class ViewToControllerMessageBus {
         uuid: uuid
       }, '*');
     });
+  }
+
+  _setupRuntime() {
+    this.observable = new ObservableSingleton();
+    this.emitter = new EmitterSingleton();
+
+    /**
+     * Register message handlers
+     */
+    // listens to messages from the controller_worker (which runs the frontend/controller.js)
+    window.addEventListener('message', (event) => {
+      switch (event.data.method) {
+        case 'presentView':
+          this.siftView.presentView(event.data.params);
+          break;
+        case 'willPresentView':
+          this.siftView.willPresentView(event.data.params);
+          break;
+        case 'loadDataCallback':
+          if (event.data.uuid) {
+            this.emitter.emit(event.data.uuid, event.data.params);
+          }
+          else {
+            console.error('redsift_cb: received loadDataCallback without uuid');
+          }
+          break;
+        case 'notifyView':
+          this.observable.notifyObservers(event.data.params.topic, event.data.params.value);
+          break;
+        default:
+          console.error('redsift_cb: unexpected message from origin:', event.origin);
+          break;
+      }
+    }, false);
   }
 
   _setupBus() {

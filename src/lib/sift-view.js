@@ -4,8 +4,7 @@ import { isTouchDevice } from './utils'
 
 export default class SiftView {
   constructor() {
-    this.viewToControllerMessageBus = new ViewToControllerMessageBus(Redsift.Runtime.emitter, Redsift.Runtime.observable);
-    // this.controllerSubscribeBus = new ControllerViewPostMessageBus();
+    this.viewToControllerMessageBus = new ViewToControllerMessageBus(this);
 
     this.popupAllowed = this._isPopupAllowed(this.viewToControllerMessageBus);
     this.resizeHandler = null;
