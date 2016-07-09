@@ -1,4 +1,3 @@
-// import ControllerViewPostMessageBus from './controller-message-bus';
 import ViewToControllerMessageBus from './view-to-controller-message-bus';
 import { isTouchDevice } from './utils'
 
