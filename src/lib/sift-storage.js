@@ -21,7 +21,7 @@ export default class SiftStorage extends Logger {
         this.logger.trace('[SiftStorage] subsribe: ', topic);
         // Some more info about the isArray check: http://web.mit.edu/jwalden/www/isArray.html
         if (Array.isArray(topic)) {
-            topic.forEach(function(t) {
+            topic.forEach((t) => {
                 if (!this.observable) {
                   this.observableWaitingList.push({topic: t, handler: handler});
                 } else {
