@@ -15,6 +15,13 @@ export default class Observable {
     this._op('_unsub', topic, observer);
   }
 
+  unsubscribeAll(topic) {
+    if (!this.observers[topic]) {
+      return;
+    }
+    delete this.observers[topic];
+  }
+
   publish(topic, message) {
     this._op('_pub', topic, message);
   }
