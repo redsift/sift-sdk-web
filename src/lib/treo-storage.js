@@ -8,7 +8,7 @@
 /*****************************************************************
  * Module
  *****************************************************************/
-/* globals window, IDBKeyRange, Promise, self, define */
+/* globals window, IDBKeyRange, Promise, define */
 var TreoStorage = function (dbInfo, internalUse, log) {
 
   // dbInfo: {type: 'SYNC' | 'MSG' | 'SIFT', siftGuid: guid, accountGuid: guid, schema: schema }

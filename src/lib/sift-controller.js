@@ -77,8 +77,9 @@ export default class SiftController {
   }
 
   _terminate() {
+    if(!this._proxy) return;
     console.log('[SiftController::_terminate]');
-    self.close();
+    this._proxy.close();
   }
 
   _postCallback(params, _result) {

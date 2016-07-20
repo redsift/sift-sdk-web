@@ -1,6 +1,8 @@
+import EmailClientController from './lib/email-client-controller';
 import SiftController from './lib/sift-controller.js';
 import SiftStorage from './lib/sift-storage.js';
 
+export { EmailClientController };
 export { SiftController };
 export { SiftStorage };
 export { default as SiftView } from './lib/sift-view.js';
