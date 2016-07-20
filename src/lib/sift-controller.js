@@ -1,4 +1,3 @@
-import EmailClient from './email-client'
 import Observable from './observable';
 import SiftStorage from './sift-storage';
 import TreoStorage from './treo-storage';

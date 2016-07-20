@@ -18,6 +18,6 @@
     "treo": "0.5.1"
   },
   "devDependencies": {
-    "@redsift/redsift-bundler": "0.3.1"
+    "@redsift/redsift-bundler": "0.3.3"
   }
 }
