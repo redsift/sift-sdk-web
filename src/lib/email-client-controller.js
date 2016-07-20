@@ -7,13 +7,13 @@ export default class EmailClientController {
   _registerMessageListeners() {
     if(!this._proxy) return;
     this._proxy.onmessage = (e) => {
-      console.log('[SiftController::onmessage]: ', e.data);
+      // console.log('[SiftController::onmessage]: ', e.data);
       let method = e.data.method;
       if (this['_' + method]) {
         this['_' + method](e.data.params);
       }
       else {
-        console.log('[EmailClientController::onmessage]: method not implemented: ', method);
+        // console.log('[EmailClientController::onmessage]: method not implemented: ', method);
       }
     };
   }
@@ -25,7 +25,7 @@ export default class EmailClientController {
   }
 
   _getThreadRowDisplayInfo(params) {
-    console.log('[EmailClientController::_getThreadRowDisplayInfo]: ', params);
+    // console.log('[EmailClientController::_getThreadRowDisplayInfo]: ', params);
     var trdis = {};
     params.tris.forEach((thread) => {
       if (this.loadThreadListView) {

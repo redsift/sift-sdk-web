@@ -24,19 +24,19 @@ export default class SiftController {
   _registerMessageListeners() {
     if(!this._proxy) return;
     this._proxy.onmessage = (e) => {
-      console.log('[SiftController::onmessage]: ', e.data);
+      // console.log('[SiftController::onmessage]: ', e.data);
       let method = e.data.method;
       if (this['_' + method]) {
         this['_' + method](e.data.params);
       }
       else {
-        console.log('[SiftController:onmessage]: method not implemented: ', method);
+        // console.log('[SiftController:onmessage]: method not implemented: ', method);
       }
     };
   }
 
   _init(params) {
-    console.log('[SiftController::_init]: ', params);
+    // console.log('[SiftController::_init]: ', params);
     this.storage.init(
       TreoStorage({
         type: 'SIFT',
@@ -58,7 +58,7 @@ export default class SiftController {
 
   _terminate() {
     if(!this._proxy) return;
-    console.log('[SiftController::_terminate]');
+    // console.log('[SiftController::_terminate]');
     this._proxy.close();
   }
 
@@ -76,7 +76,7 @@ export default class SiftController {
   }
 
   _loadView(params) {
-    console.log('[SiftController::_loadView]: ', params);
+    // console.log('[SiftController::_loadView]: ', params);
     if (!this.loadView) {
       console.error('[SiftController::_loadView]: Sift controller must implement the loadView method');
       return;
@@ -87,7 +87,7 @@ export default class SiftController {
       type: params.type,
       params: params.data
     });
-    console.log('[SiftController::_loadView] loadView result: ', result);
+    // console.log('[SiftController::_loadView] loadView result: ', result);
     if (result.data && 'function' === typeof result.data.then) {
       if (result.html) {
         this._postCallback(params, { html: result.html });
@@ -104,7 +104,7 @@ export default class SiftController {
   }
 
   _storageUpdated(params) {
-    console.log('[SiftController::_storageUpdated]: ', params);
+    // console.log('[SiftController::_storageUpdated]: ', params);
     // Notify the * listeners
     this.storage.publish('*', params);
     params.forEach((b) => {
@@ -115,12 +115,12 @@ export default class SiftController {
   }
 
   _notifyController(params) {
-    console.log('[SiftController::_notifyController]: ', params);
+    // console.log('[SiftController::_notifyController]: ', params);
     this.view.publish(params.topic, params.value);
   }
 
   _emailComposer(params) {
-    console.log('[SiftController::_emailComposer]: ', params);
+    // console.log('[SiftController::_emailComposer]: ', params);
     this.emailclient.publish(params.topic, params.value);
   }
 }
