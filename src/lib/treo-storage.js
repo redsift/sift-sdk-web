@@ -74,7 +74,7 @@ var TreoStorage = function (dbInfo, internalUse) {
   }
 
   function _batchPut(db, bucket, kvs) {
-    console.log('storage: _batchPut: ', db, bucket, kvs);
+    // console.log('storage: _batchPut: ', db, bucket, kvs);
     return new Promise(function (resolve, reject) {
       var count = kvs.length;
       db.transaction('readwrite', [bucket], function(err, tr) {
@@ -87,7 +87,7 @@ var TreoStorage = function (dbInfo, internalUse) {
 
         function next() {
           if (current >= count) { return; }
-          console.log('storage: _batchPut: put: ', kvs[current]);
+          // console.log('storage: _batchPut: put: ', kvs[current]);
           var req;
           req = store.put(kvs[current].value, kvs[current].key);
           req.onerror = reject;
@@ -99,7 +99,7 @@ var TreoStorage = function (dbInfo, internalUse) {
   }
 
   function _getWithIndexRange(db, bucket, keys, index, range) {
-    console.log('storage: _getWithIndexRange: ', bucket, keys);
+    // console.log('storage: _getWithIndexRange: ', bucket, keys);
     return new Promise(function (resolve, reject) {
       var store = db.store(bucket);
       var result = [];
@@ -112,7 +112,7 @@ var TreoStorage = function (dbInfo, internalUse) {
       function iterator(cursor) {
         var ki = keys.indexOf(cursor.primaryKey);
         if (ki !== -1) {
-          console.log('storage: found key: ', cursor.primaryKey);
+          // console.log('storage: found key: ', cursor.primaryKey);
           result[ki].value = cursor.value.value;
           found++;
         }
@@ -123,7 +123,7 @@ var TreoStorage = function (dbInfo, internalUse) {
       }
 
       function done(err) {
-        console.log('storage: _getWithIndexRange: result: ', result);
+        // console.log('storage: _getWithIndexRange: result: ', result);
         err ? reject(err) : resolve(result);
       }
     });
@@ -131,7 +131,7 @@ var TreoStorage = function (dbInfo, internalUse) {
 
 
   function _findIn(db, bucket, keys) {
-    console.log('storage: findIn: ', bucket, keys);
+    // console.log('storage: findIn: ', bucket, keys);
     return new Promise(function (resolve, reject) {
       var store = db.store(bucket);
       var result = [];
@@ -139,46 +139,46 @@ var TreoStorage = function (dbInfo, internalUse) {
       var sKeys = keys.slice();
       sKeys = sKeys.sort(treo.cmp);
 
-      console.log('storage: findIn: sorted keys: ', sKeys);
+      // console.log('storage: findIn: sorted keys: ', sKeys);
       keys.forEach(function (k) {
         result.push({key: k, value: undefined});
       });
       store.cursor({ iterator: iterator }, done);
 
       function iterator(cursor) {
-        console.log('storage: findIn: iterator: ', cursor);
+        // console.log('storage: findIn: iterator: ', cursor);
         if (cursor.key > sKeys[current]) {
-          console.log('storage: cursor ahead: ', cursor.key, sKeys[current]);
+          // console.log('storage: cursor ahead: ', cursor.key, sKeys[current]);
           while(cursor.key > sKeys[current] && current < sKeys.length) {
             current += 1;
-            console.log('storage: moving to next key: ', cursor.key, sKeys[current]);
+            // console.log('storage: moving to next key: ', cursor.key, sKeys[current]);
           }
           if(current > sKeys.length) {
-            console.log('storage: exhausted keys. done.');
+            // console.log('storage: exhausted keys. done.');
             return done();
           }
         }
         if (cursor.key === sKeys[current]) {
-          console.log('storage: found key: ', cursor.key);
+          // console.log('storage: found key: ', cursor.key);
           result[keys.indexOf(sKeys[current])] = {key: cursor.key, value: cursor.value.value};
           current += 1;
           (current < sKeys.length)?cursor.continue(sKeys[current]):done();
         }
         else {
-          console.log('storage: continuing to next key: ', sKeys[current]);
+          // console.log('storage: continuing to next key: ', sKeys[current]);
           cursor.continue(sKeys[current]); // go to next key
         }
       }
 
       function done(err) {
-        console.log('storage: findIn: result: ', result);
+        // console.log('storage: findIn: result: ', result);
         err ? reject(err) : resolve(result);
       }
     });
   }
 
   function _getAll(db, bucket, loadValue, index, range) {
-    console.log('storage: _getAll: ', bucket, loadValue, index, range);
+    // console.log('storage: _getAll: ', bucket, loadValue, index, range);
     return new Promise(function (resolve, reject) {
       var result = [];
       var keys = [];
@@ -227,7 +227,7 @@ var TreoStorage = function (dbInfo, internalUse) {
   Public.get =
   function (params) {
     var db = _db;
-    console.log('storage: get: ', params);
+    // console.log('storage: get: ', params);
     if (!params.bucket) {
       console.error('storage: get: undefined bucket');
       return Promise.reject('undefined bucket');
@@ -253,7 +253,7 @@ var TreoStorage = function (dbInfo, internalUse) {
   Public.getIndexKeys =
   function (params) {
     var db = _db;
-    console.log('storage: getIndexKeys: ', params);
+    // console.log('storage: getIndexKeys: ', params);
     if(!params.bucket) {
       console.error('storage: getIndexKeys: undefined bucket');
       return Promise.reject('undefined bucket');
@@ -276,7 +276,7 @@ var TreoStorage = function (dbInfo, internalUse) {
   Public.getIndex =
   function (params) {
     var db = _db;
-    console.log('storage: getIndex: ', params);
+    // console.log('storage: getIndex: ', params);
     if(!params.bucket) {
       console.error('storage: getIndex: undefined bucket');
       return Promise.reject('undefined bucket');
@@ -299,7 +299,7 @@ var TreoStorage = function (dbInfo, internalUse) {
   Public.getWithIndex =
   function (params) {
     var db = _db;
-    console.log('storage: getWithIndex: ', params);
+    // console.log('storage: getWithIndex: ', params);
     if(!params.bucket) {
       console.error('storage: getWithIndex: undefined bucket');
       return Promise.reject('undefined bucket');
@@ -334,7 +334,7 @@ var TreoStorage = function (dbInfo, internalUse) {
   Public.getAllKeys =
   function (params) {
     var db = _db;
-    console.log('storage: getAllKeys: ', params);
+    // console.log('storage: getAllKeys: ', params);
     if (!params.bucket) {
       console.error('storage: getAllKeys: undefined bucket');
       return Promise.reject('undefined bucket');
@@ -378,7 +378,7 @@ var TreoStorage = function (dbInfo, internalUse) {
 
   Private.put =
   function (params, raw) {
-    console.log('storage: put: ', params, raw);
+    // console.log('storage: put: ', params, raw);
     var db = _db;
     if (!params.bucket) {
       console.error('storage: put: undefined bucket');
@@ -422,7 +422,7 @@ var TreoStorage = function (dbInfo, internalUse) {
       return Promise.reject('undefined bucket');
     }
     if (!params.keys || params.keys.length === 0) {
-      console.log('storage: del called with no/empty keys');
+      // console.log('storage: del called with no/empty keys');
       return Promise.resolve();
     }
     var keys = params.keys;
@@ -513,7 +513,7 @@ var TreoStorage = function (dbInfo, internalUse) {
       stores.forEach(function(os) {
         if(!(sift && (SPECIAL_BUCKETS.indexOf(os.name) !== -1))) {
           if(os.drop) {
-            console.log('storage: _getVersionedTreoSchema: dropping store: ', os.name);
+            // console.log('storage: _getVersionedTreoSchema: dropping store: ', os.name);
             schema = schema.dropStore(os.name);
           }
           else if(os.keypath) {
@@ -525,7 +525,7 @@ var TreoStorage = function (dbInfo, internalUse) {
           if(os.indexes) {
             os.indexes.forEach(function (idx) {
               if(os.drop) {
-              console.log('storage: _getVersionedTreoSchema: dropping store/index: ' + os.name + '/' + idx);
+              // console.log('storage: _getVersionedTreoSchema: dropping store/index: ' + os.name + '/' + idx);
                 schema = schema.dropIndex(idx);
               }
               else {
@@ -559,14 +559,14 @@ var TreoStorage = function (dbInfo, internalUse) {
       else {
         _siftGuid = dbInfo.siftGuid;
       }
-      console.log('storage: creating SIFT db.');
+      // console.log('storage: creating SIFT db.');
       var schema = _getTreoSchema(dbInfo.schema, true);
       schema = schema.addStore(USER_BUCKET).addStore(REDSIFT_BUCKET);
       _db = treo(_siftGuid + '-' + _accountGuid, schema);
       _msgDb = treo(MSG_DB_PREFIX + '-' + dbInfo.accountGuid, _getVersionedTreoSchema(MSG_DB_VERSIONED_SCHEMA));
       break;
     case 'SYNC':
-      console.log('storage: creating SYNC db.');
+      // console.log('storage: creating SYNC db.');
       _db = treo(SYNC_DB_PREFIX + '-' + dbInfo.accountGuid, _getTreoSchema(SYNC_DB_SCHEMA));
       break;
     default:
@@ -575,11 +575,11 @@ var TreoStorage = function (dbInfo, internalUse) {
   }
 
   if(internalUse) {
-    console.log('storage: returning private methods');
+    // console.log('storage: returning private methods');
     return Private;
   }
   else {
-    console.log('storage: public methods only');
+    // console.log('storage: public methods only');
     return Public;
   }
 };
