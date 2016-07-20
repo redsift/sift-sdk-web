@@ -1,7 +1,9 @@
 import Observable from './observable';
 
 export default class SiftStorage extends Observable {
-  constructor() {}
+  constructor() {
+    super();
+  }
 
   init(treo) {
     Object.keys(treo).forEach((method) => {
