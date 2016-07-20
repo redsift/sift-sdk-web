@@ -4,7 +4,8 @@ import Observable from './observable';
 export default class SiftView {
   constructor(controller) {
     this._observable = new Observable();
-    if(!controller) {
+    console.log('[SiftView::constructor]: ', controller);
+    if(controller !== undefined) {
       this._resizeHandler = null;
       this._proxy = parent;
       this.controller = new SiftController();

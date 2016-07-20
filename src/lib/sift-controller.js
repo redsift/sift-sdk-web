@@ -1,4 +1,5 @@
 import EmailClient from './email-client'
+import Observable from './observable';
 import SiftStorage from './sift-storage';
 import SiftView from './sift-view';
 import TreoStorage from './treo-storage';
@@ -47,7 +48,7 @@ export default class SiftController {
       console.log('[SiftController::onmessage]: ', e.data);
       let method = e.data.method;
       if (this['_' + method]) {
-        this[method](e.data.params);
+        this['_' + method](e.data.params);
       }
       else {
         console.log('[SiftController:onmessage]: method not implemented: ', method);
@@ -83,7 +84,7 @@ export default class SiftController {
   }
 
   _postCallback(params, _result) {
-    controllerWorkerMessageBus.postMessage({
+    this._proxy.postMessage({
       method: 'loadViewCallback',
       params: {
         user: { guid: this._account },
@@ -110,16 +111,16 @@ export default class SiftController {
     console.log('[SiftController::_loadView] loadView result: ', result);
     if (result.data && 'function' === typeof result.data.then) {
       if (result.html) {
-        _postCallback(params, { html: result.html });
+        this._postCallback(params, { html: result.html });
       }
-      result.data.then(function (data) {
-        _postCallback(params, { html: result.html, data: data });
-      }).catch(function (error) {
+      result.data.then((data) => {
+        this._postCallback(params, { html: result.html, data: data });
+      }).catch((error) => {
         console.error('[SiftController::loadView]: promise rejected: ', error);
       });
     }
     else {
-      _postCallback(params, result);
+      this._postCallback(params, result);
     }
   }
 
@@ -127,7 +128,7 @@ export default class SiftController {
     console.log('[SiftController::_storageUpdated]: ', params);
     // Notify the * listeners
     this.storage.publish('*', params);
-    params.forEach(function (b) {
+    params.forEach((b) => {
       // Notify the bucket listeners.
       // TODO: send the list of keys instead of "[b]"
       this.storage.publish(b, [b]);

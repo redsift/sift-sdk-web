@@ -6,14 +6,14 @@ export default class SiftStorage {
   }
 
   init(treo) {
-    Object.keys(treo).forEach(function (method) {
+    Object.keys(treo).forEach((method) => {
       this[method] = treo[method];
     });
   }
 
   // Used only in the controller context
   subscribe(topic, handler) {
-    this._observable.addObserver(t, handler);
+    this._observable.addObserver(topic, handler);
   }
 
   // Used only in the controller context
