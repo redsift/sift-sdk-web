@@ -23,6 +23,14 @@ export function registerSiftController(siftController) {
   console.log('[Redsift::registerSiftController]: registered');
 }
 
+export function createEmailClientController(instanceMethods) {
+  return _create('EmailClientController', instanceMethods);
+}
+
+export function registerEmailClientController(emailClientController) {
+  console.log('[Redsift::registerEmailClientController]: registered');
+}
+
 function _create(type, methods) {
   let Creature = function() {
     Redsift[type].call(this);
