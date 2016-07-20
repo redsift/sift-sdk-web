@@ -1,53 +1,34 @@
+import EmailClient from './email-client'
 import SiftStorage from './sift-storage';
+import SiftView from './sift-view';
+import TreoStorage from './treo-storage';
 
 export default class SiftController {
-    constructor() {
-      // Create a 'shallow' storage instance. The storage is initialized via 'initStorage()' by the controller_worker
-      // after the worker is initialized. Subscribe handlers can be registered before the storage is initialized. The
-      // handlers will be wired up correctly after the observable becomes available in the storage instance.
-      const observable = null;
-      this.storage = new SiftStorage(observable);
-
-      this.viewSubscriptionWaitingList = [];
+  constructor(view) {
+    this._observable = new Observable();
+    // If no view provided then it has been instantiated as a worker
+    if(!view) {
+      this._proxy = self;
+      this.storage = new SiftStorage();
+      this.view = new SiftView();
+      this.emailclient = new EmailClient();
+      this._registerMessageListeners();
     }
+  }
 
-    setMessageBus(controllerWorkerMessageBus) {
-      this.controllerWorkerMessageBus = controllerWorkerMessageBus;
-    }
+  // Used only in the view context
+  subscribe(topic, handler) {
+    this._observable.addObserver(topic, handler);
+  }
 
-    setView(siftView) {
-      this.view = siftView;
-      this.viewSubscriptionWaitingList.forEach((item) => {
-        this.view.addEventListener(item.eventName, item.handler);
-      });
-      this.viewSubscriptionWaitingList = [];
-    };
+  // Used only in the view context
+  unsubscribe(topic, handler) {
+    this._observable.removeObserver(topic, handler);
+  }
 
-    initStorage(observable) {
-      this.storage.setObservable(observable);
-    }
-
-    setStorageAPIInstance(treo) {
-      this.storage.setAPIInstance(treo) ;
-    }
-
-    subscribe(eventName, handler) {
-      if (!this.view) {
-        this.viewSubscriptionWaitingList.push({ eventName: eventName, handler: handler });
-      } else {
-        this.view.addEventListener(eventName, function(value) {
-            handler(value);
-        });
-      }
-    }
-
-    publish(topic, value) {
-      console.log('[SiftController::publish] ', topic, value);
-      if (!this.controllerWorkerMessageBus) {
-        throw new Error('[SiftControllerWorker] no message bus defined. Messages will NOT be forwarded to the Sift view!');
-      }
-
-      this.controllerWorkerMessageBus.postMessage({
+  publish(topic, value) {
+    if(this._proxy) {
+      this._proxy.postMessage({
         method: 'notifyView',
         params: {
           topic: topic,
@@ -55,23 +36,110 @@ export default class SiftController {
         }
       });
     }
-
-    loadData(params) {
-        return new Promise((resolve, reject) => {
-            const uuid = this._emitter.reserveUUID(function(params) {
-                this._emitter.removeAllListeners(uuid);
-                if (params.error) {
-                    reject(params.error);
-                } else {
-                    resolve(params.result);
-                }
-            });
-
-            this.controllerWorkerMessageBus.postMessage({
-                method: 'loadData',
-                params: params,
-                uuid: uuid
-            }, '*');
-        });
+    else {
+      this._observable.notifyObservers(topic, value);
     }
+  }
+
+  _registerMessageListeners() {
+    if(!this._proxy) return;
+    this._proxy.onmessage = (e) => {
+      console.log('[SiftController::onmessage]: ', e.data);
+      let method = e.data.method;
+      if (this['_' + method]) {
+        this[method](e.data.params);
+      }
+      else {
+        console.log('[SiftController:onmessage]: method not implemented: ', method);
+      }
+    };
+  }
+
+  _init(params) {
+    console.log('[SiftController::_init]: ', params);
+    this.storage.init(
+      TreoStorage({
+        type: 'SIFT',
+        siftGuid: params.siftGuid,
+        accountGuid: params.accountGuid,
+        schema: params.dbSchema
+      },
+        false)
+    );
+    // Initialise sift details
+    this._guid = params.siftGuid;
+    this._account = params.accountGuid;
+    // Init is done, post a message to the iframe_controller
+    this._proxy.postMessage({
+      method: 'initCallback',
+      result: params
+    });
+  }
+
+  _terminate() {
+    console.log('[SiftController::_terminate]');
+    self.close();
+  }
+
+  _postCallback(params, _result) {
+    controllerWorkerMessageBus.postMessage({
+      method: 'loadViewCallback',
+      params: {
+        user: { guid: this._account },
+        sift: { guid: this._guid },
+        type: params.type,
+        sizeClass: params.sizeClass,
+        result: _result
+      }
+    });
+  }
+
+  _loadView(params) {
+    console.log('[SiftController::_loadView]: ', params);
+    if (!this.loadView) {
+      console.error('[SiftController::_loadView]: Sift controller must implement the loadView method');
+      return;
+    }
+    // Invoke loadView method
+    let result = this.loadView({
+      sizeClass: params.sizeClass,
+      type: params.type,
+      params: params.data
+    });
+    console.log('[SiftController::_loadView] loadView result: ', result);
+    if (result.data && 'function' === typeof result.data.then) {
+      if (result.html) {
+        _postCallback(params, { html: result.html });
+      }
+      result.data.then(function (data) {
+        _postCallback(params, { html: result.html, data: data });
+      }).catch(function (error) {
+        console.error('[SiftController::loadView]: promise rejected: ', error);
+      });
+    }
+    else {
+      _postCallback(params, result);
+    }
+  }
+
+  _storageUpdated(params) {
+    console.log('[SiftController::_storageUpdated]: ', params);
+    // Notify the * listeners
+    this.storage.publish('*', params);
+    params.forEach(function (b) {
+      // Notify the bucket listeners.
+      // TODO: send the list of keys instead of "[b]"
+      this.storage.publish(b, [b]);
+    });
+  }
+
+  _notifyController(params) {
+    console.log('[SiftController::_notifyController]: ', params);
+    this._observable.notifyObservers(params.topic, params.value);
+  }
+
+  _emailComposer(params) {
+    console.log('[SiftController::_emailComposer]: ', params);
+    this.emailclient.publish(params.topic, params.value);
+  }
 }

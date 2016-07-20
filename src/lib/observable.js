@@ -1,13 +1,9 @@
-let instance = null;
-
-export default class ObservableSingleton {
+/**
+ * Observable pattern implementation
+ */
+export default class Observable {
   constructor() {
-    if (!instance) {
-      instance = this;
-    }
     this.observers = [];
-
-    return instance;
   }
 
   addObserver(topic, observer) {

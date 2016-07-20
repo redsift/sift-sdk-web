@@ -1,38 +1,48 @@
-import ViewToControllerEventBus from './view-to-controller-event-bus';
-import { isTouchDevice } from './utils'
+import SiftController from './sift-controller';
+import Observable from './observable';
 
 export default class SiftView {
-  constructor() {
-    this.ViewToControllerEventBus = new ViewToControllerEventBus(this);
-
-    this.popupAllowed = this._isPopupAllowed(this.ViewToControllerEventBus);
-    this.resizeHandler = null;
+  constructor(controller) {
+    this._observable = new Observable();
+    if(!controller) {
+      this._resizeHandler = null;
+      this._proxy = parent;
+      this.controller = new SiftController();
+      this._registerMessageListeners();
+    }
   }
 
-  subscribe(eventName, handler) {
-    window.addEventListener('load', () => {
-      this.ViewToControllerEventBus.subscribe(eventName, handler);
-    });
+  // Used only in the controller context
+  subscribe(topic, handler) {
+    this._observable.addObserver(topic, handler);
+  }
+
+  // Used only in the controller context
+  unsubscribe(topic, handler) {
+    this._observable.removeObserver(topic, handler);
   }
 
   publish(topic, value) {
-    this.ViewToControllerEventBus.publish({ method: 'notifyController', params: { topic: topic, value: value } }, '*');
-  }
-
-  loadData(params) {
-    return this.ViewToControllerEventBus.loadData(params);
+    if(this._proxy) {
+      this._proxy.postMessage({
+        method: 'notifyController',
+        params: {
+          topic: topic,
+          value: value } },
+        '*');
+    }
+    else {
+      this._observable.notifyObservers(topic, value);
+    }
   }
 
   registerOnLoadHandler(handler) {
     window.addEventListener('load', handler);
   }
 
+  // TODO: should we really limit resize events to every 1 second?
   registerOnResizeHandler(handler, resizeTimeout = 1000) {
     window.addEventListener('resize', () => {
-      if (isTouchDevice()) {
-        return;
-      }
-
       if (!this.resizeHandler) {
         this.resizeHandler = setTimeout(() => {
           this.resizeHandler = null;
@@ -42,15 +52,19 @@ export default class SiftView {
     });
   }
 
-  _isPopupAllowed(parentWindow) {
-    let popupAllowed = false;
-
-    if (parentWindow.self !== parentWindow.top) { // in frame
-      popupAllowed = true;
-    } else { // not in frame
-      popupAllowed = false;
-    }
-
-    return popupAllowed;
+  _registerMessageListeners() {
+    window.addEventListener('message', (e) => {
+      let method = e.data.method;
+      let params = e.data.params;
+      if(method === 'notifyView') {
+        this._observable.notifyObservers(params.topic, params.value);
+      }
+      else if(this[method]) {
+        this[method](params);
+      }
+      else {
+        console.warn('[SiftView]: method not implemented: ', method);
+      }
+    }, false);
   }
 }

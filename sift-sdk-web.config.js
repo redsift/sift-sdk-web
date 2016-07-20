@@ -19,16 +19,8 @@ var sdkConfig = {
   }
 };
 
-var runtimeConfig = {
-  mainJS: {
-    name: 'sift-runtime',
-    indexFile: './src/runtime.js'
-  }
-};
-
 var bundles = [
-  merge(defaultConfig, sdkConfig),
-  merge(defaultConfig, runtimeConfig)
+  merge(defaultConfig, sdkConfig)
 ];
 
 module.exports = bundles;
