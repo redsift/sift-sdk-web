@@ -7,60 +7,30 @@ export { SiftController };
 export { SiftStorage };
 export { default as SiftView } from './lib/sift-view.js';
 
-// FIXXME: using the global namespace to register a Sift is not optimal
 export function registerSiftView(siftView) {
-  window.Redsift = window.Redsift || {};
-  window.Redsift.siftView = siftView;
+  console.log('[Redsift::registerSiftView]: registered');
 }
 
 export function createSiftView(instanceMethods) {
-  let Sift = function() {
-    Redsift.SiftView.call(this);
-    if (this.init) {
-      this.init();
-    }
-  }
-
-  Sift.prototype = Object.create(Redsift.SiftView.prototype);
-  Sift.prototype.constructor = Sift;
-
-  let methodNames = Object.keys(instanceMethods);
-  for (var idx = 0; idx < methodNames.length; idx++) {
-    var name = methodNames[idx];
-    var method = instanceMethods[name];
-    Sift.prototype[name] = method;
-  }
-
-  window.Redsift = window.Redsift || {};
-  window.Redsift.siftView = new Sift;
-
-  return window.Redsift.siftView;
+  return _create('SiftView', instanceMethods);
 }
 
 export function createSiftController(instanceMethods) {
-  let Sift = function() {
-    Redsift.SiftController.call(this);
-    if (this.init) {
-      this.init();
-    }
-  }
-
-  Sift.prototype = Object.create(Redsift.SiftController.prototype);
-  Sift.prototype.constructor = Sift;
-
-  let methodNames = Object.keys(instanceMethods);
-  for (var idx = 0; idx < methodNames.length; idx++) {
-    var name = methodNames[idx];
-    var method = instanceMethods[name];
-    Sift.prototype[name] = method;
-  }
-
-  window.Redsift = window.Redsift || {};
-  window.Redsift.siftController = new Sift;
-
-  return window.Redsift.siftController;
+  return _create('SiftController', instanceMethods);
 }
 
 export function registerSiftController(siftController) {
-  console.log('controller registered dummy');
+  console.log('[Redsift::registerSiftController]: registered');
+}
+
+function _create(type, methods) {
+  let Creature = function() {
+    Redsift[type].call(this);
+  }
+  Creature.prototype = Object.create(Redsift[type].prototype);
+  Creature.prototype.constructor = Creature;
+  Object.keys(methods).forEach((method) => {
+    Creature.prototype[name] = method;
+  });
+  return new Creature();
 }
