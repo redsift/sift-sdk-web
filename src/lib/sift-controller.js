@@ -1,45 +1,25 @@
 import EmailClient from './email-client'
 import Observable from './observable';
 import SiftStorage from './sift-storage';
-import SiftView from './sift-view';
 import TreoStorage from './treo-storage';
 
 export default class SiftController {
-  constructor(view) {
-    this._observable = new Observable();
-    // If no view provided then it has been instantiated as a worker
-    if(!view) {
-      this._proxy = self;
-      this.storage = new SiftStorage();
-      this.view = new SiftView();
-      this.emailclient = new EmailClient();
-      this._registerMessageListeners();
-    }
-  }
-
-  // Used only in the view context
-  subscribe(topic, handler) {
-    this._observable.addObserver(topic, handler);
-  }
-
-  // Used only in the view context
-  unsubscribe(topic, handler) {
-    this._observable.removeObserver(topic, handler);
+  constructor() {
+    this._proxy = self;
+    this.storage = new SiftStorage();
+    this.view = new Observable();
+    this.emailclient = new Observable();
+    this._registerMessageListeners();
   }
 
   publish(topic, value) {
-    if(this._proxy) {
-      this._proxy.postMessage({
-        method: 'notifyView',
-        params: {
-          topic: topic,
-          value: value
-        }
-      });
-    }
-    else {
-      this._observable.notifyObservers(topic, value);
-    }
+    this._proxy.postMessage({
+      method: 'notifyView',
+      params: {
+        topic: topic,
+        value: value
+      }
+    });
   }
 
   _registerMessageListeners() {
@@ -137,7 +117,7 @@ export default class SiftController {
 
   _notifyController(params) {
     console.log('[SiftController::_notifyController]: ', params);
-    this._observable.notifyObservers(params.topic, params.value);
+    this.view.publish(params.topic, params.value);
   }
 
   _emailComposer(params) {

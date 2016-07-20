@@ -6,12 +6,12 @@ export default class Observable {
     this.observers = [];
   }
 
-  addObserver(topic, observer) {
+  subscribe(topic, observer) {
     this.observers[topic] || (this.observers[topic] = []);
     this.observers[topic].push(observer);
   }
 
-  removeObserver(topic, observer) {
+  unsubscribe(topic, observer) {
     if (!this.observers[topic]) {
       return;
     }
@@ -21,7 +21,7 @@ export default class Observable {
     }
   }
 
-  notifyObservers(topic, message) {
+  publish(topic, message) {
     if (!this.observers[topic]) {
       return;
     }
