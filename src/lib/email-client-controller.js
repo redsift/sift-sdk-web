@@ -28,7 +28,7 @@ export default class EmailClientController {
     // console.log('[EmailClientController::_getThreadRowDisplayInfo]: ', params);
     var trdis = {};
     params.tris.forEach((thread) => {
-      if (this.loadThreadListView) {
+      if (thread.value !== undefined && thread.value.list !== undefined && this.loadThreadListView) {
         trdis[thread.key] = this.loadThreadListView(thread.value.list, params.supportedTemplates);
       }
     });
