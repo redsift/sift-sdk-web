@@ -1,3 +1,4 @@
+import EmailClient from './email-client';
 import Observable from './observable';
 import SiftStorage from './sift-storage';
 import TreoStorage from './treo-storage';
@@ -7,7 +8,7 @@ export default class SiftController {
     this._proxy = self;
     this.storage = new SiftStorage();
     this.view = new Observable();
-    this.emailclient = new Observable();
+    this.emailclient = new EmailClient(self);
     this._registerMessageListeners();
   }
 
