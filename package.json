@@ -1,12 +1,13 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "SDK for developing web-based Sifts.",
   "jsnext:main": "src/sdk.js",
   "main": "dist/js/sift-sdk.umd-es2015.js",
   "scripts": {
     "build": "gulp build",
     "pretest": "npm outdated",
+    "prepublish": "gulp build",
     "test": "echo \"no test specified\" && exit 0"
   },
   "keywords": [
