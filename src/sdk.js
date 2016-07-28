@@ -46,6 +46,9 @@ export function registerEmailClientController(emailClientController) {
 function _create(type, methods) {
   let Creature = function() {
     Redsift[type].call(this);
+    if(this.init) {
+      this.init();
+    }
   }
   Creature.prototype = Object.create(Redsift[type].prototype);
   Creature.prototype.constructor = Creature;
