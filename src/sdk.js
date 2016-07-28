@@ -47,7 +47,6 @@ export function registerEmailClientController(emailClientController) {
 function _create(Base, methods) {
   let Creature = function() {
     Base.call(this);
-    console.log('** this **: ', this);
     if(this.init && typeof this.init === 'function') {
       this.init();
     }
