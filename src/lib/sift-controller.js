@@ -39,7 +39,7 @@ export default class SiftController {
   _init(params) {
     // console.log('[SiftController::_init]: ', params);
     this.storage.init(
-      RSStorage({
+      new RSStorage({
         type: 'SIFT',
         siftGuid: params.siftGuid,
         accountGuid: params.accountGuid,
