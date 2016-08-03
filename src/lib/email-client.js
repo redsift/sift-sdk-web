@@ -1,4 +1,4 @@
-import Observable from './observable';
+import Observable from '@redsift/observable';
 
 export default class EmailClient extends Observable {
   constructor(proxy) {

@@ -18,7 +18,8 @@
   "author": "Martin Hecher <martin@redsift.io>",
   "license": "MIT",
   "dependencies": {
-    "treo": "0.5.1"
+    "@redsift/observable": "^1.1.3",
+    "@redsift/rs-storage": "^1.1.4"
   },
   "devDependencies": {
     "@redsift/redsift-bundler": "0.3.4"

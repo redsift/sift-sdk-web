@@ -1,4 +1,4 @@
-import Observable from './observable';
+import Observable from '@redsift/observable';
 
 export default class SiftStorage extends Observable {
   constructor() {
