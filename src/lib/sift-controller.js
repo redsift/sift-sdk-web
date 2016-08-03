@@ -1,7 +1,7 @@
 import EmailClient from './email-client';
-import Observable from './observable';
+import Observable from '@redsift/observable';
 import SiftStorage from './sift-storage';
-import TreoStorage from './treo-storage';
+import RSStorage from '@redsift/rs-storage';
 
 export default class SiftController {
   constructor() {
@@ -39,7 +39,7 @@ export default class SiftController {
   _init(params) {
     // console.log('[SiftController::_init]: ', params);
     this.storage.init(
-      TreoStorage({
+      RSStorage({
         type: 'SIFT',
         siftGuid: params.siftGuid,
         accountGuid: params.accountGuid,
