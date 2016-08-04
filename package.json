@@ -19,7 +19,7 @@
   "license": "MIT",
   "dependencies": {
     "@redsift/observable": "^1.1.3",
-    "@redsift/rs-storage": "^1.1.5"
+    "@redsift/rs-storage": "^1.1.8"
   },
   "devDependencies": {
     "@redsift/redsift-bundler": "0.4.3"
