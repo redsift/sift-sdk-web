@@ -1,7 +1,7 @@
 import EmailClient from './email-client';
 import Observable from '@redsift/observable';
 import SiftStorage from './sift-storage';
-import RSStorage from '@redsift/rs-storage';
+import { Storage } from '@redsift/rs-storage';
 
 export default class SiftController {
   constructor() {
@@ -23,7 +23,7 @@ export default class SiftController {
   }
 
   _registerMessageListeners() {
-    if(!this._proxy) return;
+    if (!this._proxy) return;
     this._proxy.onmessage = (e) => {
       // console.log('[SiftController::onmessage]: ', e.data);
       let method = e.data.method;
@@ -39,13 +39,12 @@ export default class SiftController {
   _init(params) {
     // console.log('[SiftController::_init]: ', params);
     this.storage.init(
-      new RSStorage({
+      new Storage({
         type: 'SIFT',
         siftGuid: params.siftGuid,
         accountGuid: params.accountGuid,
         schema: params.dbSchema
-      },
-        false)
+      })
     );
     // Initialise sift details
     this._guid = params.siftGuid;
@@ -58,7 +57,7 @@ export default class SiftController {
   }
 
   _terminate() {
-    if(!this._proxy) return;
+    if (!this._proxy) return;
     // console.log('[SiftController::_terminate]');
     this._proxy.close();
   }
