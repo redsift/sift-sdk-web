@@ -6,7 +6,6 @@ import { Storage } from '@redsift/rs-storage';
 export default class SiftController {
   constructor() {
     this._proxy = self;
-    this.storage = new SiftStorage();
     this.view = new Observable();
     this.emailclient = new EmailClient(self);
     this._registerMessageListeners();
@@ -38,6 +37,7 @@ export default class SiftController {
 
   _init(params) {
     // console.log('[SiftController::_init]: ', params);
+    this.storage = new SiftStorage();
     this.storage.init(
       new Storage({
         type: 'SIFT',
