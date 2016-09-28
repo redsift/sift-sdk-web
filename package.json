@@ -1,6 +1,6 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "SDK for developing web-based Sifts.",
   "jsnext:main": "src/sdk.js",
   "main": "dist/js/sift-sdk.umd-es2015.js",
@@ -18,10 +18,10 @@
   "author": "Martin Hecher <martin@redsift.io>",
   "license": "MIT",
   "dependencies": {
-    "@redsift/observable": "^1.1.3",
-    "@redsift/rs-storage": "^1.1.10"
+    "@redsift/observable": "^1.1.4",
+    "@redsift/rs-storage": "^1.1.13"
   },
   "devDependencies": {
-    "@redsift/redsift-bundler": "0.4.3"
+    "@redsift/redsift-bundler": "0.5.3"
   }
 }
