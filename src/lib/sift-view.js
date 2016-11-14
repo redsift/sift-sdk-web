@@ -1,5 +1,4 @@
 import Observable from '@redsift/observable';
-import SiftController from './sift-controller';
 
 export default class SiftView {
   constructor() {
