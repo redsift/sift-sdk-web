@@ -1,5 +1,4 @@
 import Observable from '@redsift/observable';
-import SiftController from './sift-controller';
 
 export default class SiftView {
   constructor() {
@@ -16,22 +15,6 @@ export default class SiftView {
         topic: topic,
         value: value } },
       '*');
-  }
-
-  registerOnLoadHandler(handler) {
-    window.addEventListener('load', handler);
-  }
-
-  // TODO: should we really limit resize events to every 1 second?
-  registerOnResizeHandler(handler, resizeTimeout = 1000) {
-    window.addEventListener('resize', () => {
-      if (!this.resizeHandler) {
-        this.resizeHandler = setTimeout(() => {
-          this.resizeHandler = null;
-          handler();
-        }, resizeTimeout);
-      }
-    });
   }
 
   _registerMessageListeners() {
