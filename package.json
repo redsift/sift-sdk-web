@@ -6,7 +6,7 @@
   "main": "dist/js/sift-sdk.umd-es2015.js",
   "scripts": {
     "build": "gulp build",
-    "pretest": "npm outdated",
+    "pretest": "npm outdated && exit 0",
     "prepublish": "gulp build",
     "test": "echo \"no test specified\" && exit 0"
   },
