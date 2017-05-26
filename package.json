@@ -1,6 +1,6 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "SDK for developing web-based Sifts.",
   "jsnext:main": "src/sdk.js",
   "main": "dist/js/sift-sdk.umd-es2015.js",
@@ -19,7 +19,7 @@
   "license": "MIT",
   "dependencies": {
     "@redsift/observable": "^1.1.4",
-    "@redsift/rs-storage": "^1.1.14"
+    "@redsift/rs-storage": "^1.2.0"
   },
   "devDependencies": {
     "@redsift/redsift-bundler": "0.5.5"
