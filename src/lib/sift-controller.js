@@ -85,7 +85,8 @@ export default class SiftController {
     let result = this.loadView({
       sizeClass: params.sizeClass,
       type: params.type,
-      params: params.data
+      params: params.data,
+      rpcApiConfig: params.rpcApiConfig
     });
     // console.log('[SiftController::_loadView] loadView result: ', result);
     if (result.data && 'function' === typeof result.data.then) {
