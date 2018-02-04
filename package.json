@@ -1,6 +1,6 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "SDK for developing web-based Sifts.",
   "jsnext:main": "dist/sift-sdk-web.esm.js",
   "module": "dist/sift-sdk-web.esm.js",
