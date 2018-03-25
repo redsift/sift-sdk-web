@@ -17,6 +17,47 @@ export default class SiftView {
       '*');
   }
 
+  notifyClient(topic, value) {
+    this._proxy.postMessage(
+      {
+        method: 'notifyClient',
+        params: {
+          topic: topic,
+          value: value,
+        },
+      },
+      '*'
+    );
+  }
+
+  showOAuthPopup({ provider, options = null }) {
+    const topic = 'showOAuthPopup';
+    const value = { provider, options };
+
+    this.notifyClient(topic, value);
+  }
+
+  login() {
+    const topic = 'login';
+    const value = {};
+
+    this.notifyClient(topic, value);
+  }
+
+  logout() {
+    const topic = 'logout';
+    const value = {};
+
+    this.notifyClient(topic, value);
+  }
+
+  navigate({ href, openInNewTab = false }) {
+    const topic = 'navigate';
+    const value = { href, openInNewTab };
+
+    this.notifyClient(topic, value);
+  }
+
   _registerMessageListeners() {
     window.addEventListener('message', (e) => {
       let method = e.data.method;
