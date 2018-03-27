@@ -37,6 +37,13 @@ export default class SiftView {
     this.notifyClient(topic, value);
   }
 
+  signup() {
+    const topic = 'signup';
+    const value = {};
+
+    this.notifyClient(topic, value);
+  }
+
   login() {
     const topic = 'login';
     const value = {};
