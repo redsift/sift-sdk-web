@@ -37,6 +37,13 @@ export default class SiftView {
     this.notifyClient(topic, value);
   }
 
+  removeOAuthIdentity({ provider }) {
+    const topic = 'showOAuthRemovePopup';
+    const value = { provider };
+
+    this.notifyClient(topic, value);
+  }
+
   signup() {
     const topic = 'signup';
     const value = {};
