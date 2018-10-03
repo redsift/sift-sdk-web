@@ -1,6 +1,6 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "SDK for developing web-based Sifts.",
   "jsnext:main": "dist/sift-sdk-web.esm.js",
   "module": "dist/sift-sdk-web.esm.js",
@@ -23,11 +23,10 @@
   "license": "MIT",
   "dependencies": {
     "@redsift/observable": "^1.2.0",
-    "@redsift/rs-storage": "^1.3.1",
-    "babel-plugin-external-helpers": "^6.22.0",
-    "babel-preset-env": "^1.6.1"
+    "@redsift/rs-storage": "^1.3.1"
   },
   "devDependencies": {
-    "@redsift/rollup-bundler": "^0.5.0-beta7"
+    "@babel/runtime": "^7.0.0",
+    "@redsift/rollup-bundler": "^0.6.1"
   }
 }
