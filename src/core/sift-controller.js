@@ -13,36 +13,27 @@ export default class SiftController {
     this._pluginManager = new PluginManager();
   }
 
-  _initPlugins = params => {
-    const { pluginConfigs } = params;
-
+  _initPlugins = ({ pluginConfigs }) => {
     this._pluginManager.init({
       pluginConfigs,
-      params,
       contextType: 'controller',
       context: this,
       global: self,
     });
   }
 
-  _startPlugins = params => {
-    const { pluginConfigs } = params;
-
+  _startPlugins = ({ pluginConfigs }) => {
     this._pluginManager.start({
       pluginConfigs,
-      params,
       contextType: 'controller',
       context: this,
       global: self,
     });
   }
 
-  _stopPlugins = params => {
-    const { pluginConfigs } = params;
-
+  _stopPlugins = ({ pluginConfigs }) => {
     this._pluginManager.stop({
       pluginConfigs,
-      params,
       contextType: 'controller',
       context: this,
       global: self,

@@ -11,36 +11,27 @@ export default class SiftView {
     this._pluginManager = new PluginManager();
   }
 
-  _initPlugins = params => {
-    const { pluginConfigs } = params;
-
+  _initPlugins = ({ pluginConfigs }) => {
     this._pluginManager.init({
       pluginConfigs,
-      params,
       contextType: 'view',
       context: this,
       global: window,
     });
   }
 
-  _startPlugins = params => {
-    const { pluginConfigs } = params;
-
+  _startPlugins = ({ pluginConfigs }) => {
     this._pluginManager.start({
       pluginConfigs,
-      params,
       contextType: 'view',
       context: this,
       global: window,
     });
   }
 
-  _stopPlugins = params => {
-    const { pluginConfigs } = params;
-
+  _stopPlugins = ({ pluginConfigs }) => {
     this._pluginManager.stop({
       pluginConfigs,
-      params,
       contextType: 'view',
       context: this,
       global: window,

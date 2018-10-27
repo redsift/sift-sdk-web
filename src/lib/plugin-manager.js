@@ -4,7 +4,7 @@ export default class PluginManager {
   _pluginFactory = SiftPlugins;
   _activePlugins = [];
 
-  init = ({ pluginConfigs, params, contextType, context, global }) => {
+  init = ({ pluginConfigs, contextType, context, global }) => {
     pluginConfigs.forEach(pluginConfig => {
       const Plugin = this._pluginFactory.find(
         Plugin => Plugin.id() === pluginConfig.id
@@ -12,22 +12,22 @@ export default class PluginManager {
 
       if (Plugin && Plugin.contexts().includes(contextType)) {
         const plugin = new Plugin();
-        if (plugin.init(params)) {
+        if (plugin.init({ pluginConfigs, contextType, context, global })) {
           this._activePlugins.push(plugin);
         }
       }
     });
   };
 
-  start = ({ pluginConfigs, params, contextType, context, global }) => {
+  start = ({ pluginConfigs, contextType, context, global }) => {
     this._activePlugins.forEach(activePlugin =>
-      activePlugin.start({ pluginConfigs, params })
+      activePlugin.start({ pluginConfigs, contextType, context, global })
     );
   };
 
-  stop = ({ pluginConfigs, params, contextType, context, global }) => {
+  stop = ({ pluginConfigs, contextType, context, global }) => {
     this._activePlugins.forEach(activePlugin =>
-      activePlugin.stop({ pluginConfigs, params })
+      activePlugin.stop({ pluginConfigs, contextType, context, global })
     );
   };
 }
