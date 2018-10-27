@@ -1,3 +1,5 @@
+
+import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
 
 export default class SiftView {
@@ -6,8 +8,45 @@ export default class SiftView {
     this._proxy = parent;
     this.controller = new Observable();
     this._registerMessageListeners();
+    this._pluginManager = new PluginManager();
   }
 
+  _initPlugins = params => {
+    const { pluginConfigs } = params;
+
+    this._pluginManager.init({
+      pluginConfigs,
+      params,
+      contextType: 'view',
+      context: this,
+      global: window,
+    });
+  }
+
+  _startPlugins = params => {
+    const { pluginConfigs } = params;
+
+    this._pluginManager.start({
+      pluginConfigs,
+      params,
+      contextType: 'view',
+      context: this,
+      global: window,
+    });
+  }
+
+  _stopPlugins = params => {
+    const { pluginConfigs } = params;
+
+    this._pluginManager.stop({
+      pluginConfigs,
+      params,
+      contextType: 'view',
+      context: this,
+      global: window,
+    });
+  }
+  
   publish(topic, value) {
    this._proxy.postMessage({
       method: 'notifyController',

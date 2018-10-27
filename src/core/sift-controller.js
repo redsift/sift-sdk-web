@@ -1,4 +1,5 @@
 import EmailClient from './email-client';
+import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
 import SiftStorage from './sift-storage';
 import { Storage } from '@redsift/rs-storage';
@@ -9,6 +10,43 @@ export default class SiftController {
     this.view = new Observable();
     this.emailclient = new EmailClient(self);
     this._registerMessageListeners();
+    this._pluginManager = new PluginManager();
+  }
+
+  _initPlugins = params => {
+    const { pluginConfigs } = params;
+
+    this._pluginManager.init({
+      pluginConfigs,
+      params,
+      contextType: 'controller',
+      context: this,
+      global: self,
+    });
+  }
+
+  _startPlugins = params => {
+    const { pluginConfigs } = params;
+
+    this._pluginManager.start({
+      pluginConfigs,
+      params,
+      contextType: 'controller',
+      context: this,
+      global: self,
+    });
+  }
+
+  _stopPlugins = params => {
+    const { pluginConfigs } = params;
+
+    this._pluginManager.stop({
+      pluginConfigs,
+      params,
+      contextType: 'controller',
+      context: this,
+      global: self,
+    });
   }
 
   publish(topic, value) {
@@ -16,21 +54,20 @@ export default class SiftController {
       method: 'notifyView',
       params: {
         topic: topic,
-        value: value
-      }
+        value: value,
+      },
     });
   }
 
   _registerMessageListeners() {
     if (!this._proxy) return;
-    this._proxy.onmessage = (e) => {
+    this._proxy.onmessage = e => {
       // console.log('[SiftController::onmessage]: ', e.data);
       let method = e.data.method;
       if (this['_' + method]) {
         this['_' + method](e.data.params);
-      }
-      else {
-        // console.log('[SiftController:onmessage]: method not implemented: ', method);
+      } else {
+        console.log('[SiftController:onmessage]: method not implemented: ', method);
       }
     };
   }
@@ -43,7 +80,7 @@ export default class SiftController {
         type: 'SIFT',
         siftGuid: params.siftGuid,
         accountGuid: params.accountGuid,
-        schema: params.dbSchema
+        schema: params.dbSchema,
       })
     );
     // Initialise sift details
@@ -52,7 +89,7 @@ export default class SiftController {
     // Init is done, post a message to the iframe_controller
     this._proxy.postMessage({
       method: 'initCallback',
-      result: params
+      result: params,
     });
   }
 
@@ -62,44 +99,63 @@ export default class SiftController {
     this._proxy.close();
   }
 
-  _postCallback(params, _result) {
+  _triggerSiftViewInit(params, _result) {
+    const lifeCycleParams = {
+      user: { guid: this._account },
+      sift: { guid: this._guid },
+      type: params.type,
+      sizeClass: params.sizeClass,
+      result: _result,
+    };
+
+    this._proxy.postMessage({
+      method: '_initPlugins',
+      params: lifeCycleParams,
+    });
+
     this._proxy.postMessage({
       method: 'loadViewCallback',
-      params: {
-        user: { guid: this._account },
-        sift: { guid: this._guid },
-        type: params.type,
-        sizeClass: params.sizeClass,
-        result: _result
-      }
+      params: lifeCycleParams,
+    });
+
+    this._proxy.postMessage({
+      method: '_loadPlugins',
+      params: lifeCycleParams,
     });
   }
 
   _loadView(params) {
     // console.log('[SiftController::_loadView]: ', params);
     if (!this.loadView) {
-      console.error('[SiftController::_loadView]: Sift controller must implement the loadView method');
+      console.error(
+        '[SiftController::_loadView]: Sift controller must implement the loadView method'
+      );
       return;
     }
+
     // Invoke loadView method
     let result = this.loadView({
       sizeClass: params.sizeClass,
       type: params.type,
-      params: params.data
+      params: params.data,
     });
     // console.log('[SiftController::_loadView] loadView result: ', result);
     if (result.data && 'function' === typeof result.data.then) {
       if (result.html) {
-        this._postCallback(params, { html: result.html });
+        this._triggerSiftViewInit(params, { html: result.html });
       }
-      result.data.then((data) => {
-        this._postCallback(params, { html: result.html, data: data });
-      }).catch((error) => {
-        console.error('[SiftController::loadView]: promise rejected: ', error);
-      });
-    }
-    else {
-      this._postCallback(params, result);
+      result.data
+        .then(data => {
+          this._triggerSiftViewInit(params, { html: result.html, data: data });
+        })
+        .catch(error => {
+          console.error(
+            '[SiftController::loadView]: promise rejected: ',
+            error
+          );
+        });
+    } else {
+      this._triggerSiftViewInit(params, result);
     }
   }
 
@@ -107,7 +163,7 @@ export default class SiftController {
     // console.log('[SiftController::_storageUpdated]: ', params);
     // Notify the * listeners
     this.storage.publish('*', params);
-    params.forEach((b) => {
+    params.forEach(b => {
       // Notify the bucket listeners.
       // TODO: send the list of keys instead of "[b]"
       this.storage.publish(b, [b]);
