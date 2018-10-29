@@ -1,6 +1,6 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "SDK for developing web-based Sifts.",
   "jsnext:main": "dist/sift-sdk-web.esm.js",
   "module": "dist/sift-sdk-web.esm.js",
@@ -27,6 +27,6 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.0.0",
-    "@redsift/rollup-bundler": "^0.6.1"
+    "@redsift/rollup-bundler": "^0.7.0"
   }
 }
