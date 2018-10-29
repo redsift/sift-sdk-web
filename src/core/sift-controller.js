@@ -91,27 +91,15 @@ export default class SiftController {
   }
 
   _triggerSiftViewInit(params, _result) {
-    const lifeCycleParams = {
-      user: { guid: this._account },
-      sift: { guid: this._guid },
-      type: params.type,
-      sizeClass: params.sizeClass,
-      result: _result,
-    };
-
-    this._proxy.postMessage({
-      method: '_initPlugins',
-      params: lifeCycleParams,
-    });
-
     this._proxy.postMessage({
       method: 'loadViewCallback',
-      params: lifeCycleParams,
-    });
-
-    this._proxy.postMessage({
-      method: '_loadPlugins',
-      params: lifeCycleParams,
+      params: {
+        user: { guid: this._account },
+        sift: { guid: this._guid },
+        type: params.type,
+        sizeClass: params.sizeClass,
+        result: _result,
+      },
     });
   }
 
@@ -130,6 +118,7 @@ export default class SiftController {
       type: params.type,
       params: params.data,
     });
+
     // console.log('[SiftController::_loadView] loadView result: ', result);
     if (result.data && 'function' === typeof result.data.then) {
       if (result.html) {
