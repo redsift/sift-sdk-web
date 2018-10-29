@@ -4,7 +4,7 @@ export default class PluginManager {
   _pluginFactory = SiftPlugins;
   _activePlugins = [];
 
-  init = ({ pluginConfigs, contextType, context, global }) => {
+  init = ({ pluginConfigs = [], contextType, context, global }) => {
     pluginConfigs.forEach(pluginConfig => {
       const Plugin = this._pluginFactory.find(
         Plugin => Plugin.id() === pluginConfig.id
