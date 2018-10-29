@@ -3,14 +3,14 @@ export default class TrackUiActivity {
   static contexts = () => ['view'];
 
   init = ({ pluginConfigs, contextType, context, global }) => {
-    console.log('[TrackUiActivity::init()] called');
+    console.log('[TrackUiActivity::init()] called | contextType:', contextType);
 
     // NOTE: return true to start plugin:
     return true;
   };
 
   start = ({ pluginConfigs, contextType, context, global }) => {
-    console.log('[TrackUiActivity::start()] called');
+    console.log('[TrackUiActivity::start()] called | contextType:', contextType);
 
     // NOTE: see https://stackoverflow.com/questions/23866902/how-to-detect-onscroll-event-on-an-iframe-the-iframes-source-is-of-the-same-do
     global.onload = () => { this._sendToCloud({ view: context })};
@@ -23,7 +23,7 @@ export default class TrackUiActivity {
   };
 
   stop = ({ pluginConfigs, contextType, context, global }) => {
-    console.log('[TrackUiActivity::stop()] called');
+    console.log('[TrackUiActivity::stop()] called | contextType:', contextType);
 
     global.onload = null;
     global.onmousemove = null;
