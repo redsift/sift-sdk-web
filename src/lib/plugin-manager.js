@@ -12,7 +12,7 @@ export default class PluginManager {
 
       if (Plugin && Plugin.contexts().includes(contextType)) {
         const plugin = new Plugin();
-        if (plugin.init({ pluginConfigs, contextType, context, global })) {
+        if (plugin.init && plugin.init({ pluginConfigs, contextType, context, global })) {
           this._activePlugins.push(plugin);
         }
       }
@@ -21,13 +21,17 @@ export default class PluginManager {
 
   start = ({ pluginConfigs, contextType, context, global }) => {
     this._activePlugins.forEach(activePlugin =>
-      activePlugin.start({ pluginConfigs, contextType, context, global })
+      activePlugin.start && activePlugin.start({ pluginConfigs, contextType, context, global })
     );
   };
 
   stop = ({ pluginConfigs, contextType, context, global }) => {
     this._activePlugins.forEach(activePlugin =>
-      activePlugin.stop({ pluginConfigs, contextType, context, global })
+      activePlugin.stop && activePlugin.stop({ pluginConfigs, contextType, context, global })
     );
   };
+
+  getActivePlugins = () => {
+    return this._activePlugins;
+  }
 }

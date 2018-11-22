@@ -5,7 +5,7 @@ export default class TrackUiActivity {
   init = ({ pluginConfigs, contextType, context, global }) => {
     console.log('[TrackUiActivity::init()] called | contextType:', contextType);
 
-    // NOTE: return true to start plugin:
+    // NOTE: return true to start the plugin:
     return true;
   };
 
@@ -13,13 +13,13 @@ export default class TrackUiActivity {
     console.log('[TrackUiActivity::start()] called | contextType:', contextType);
 
     // NOTE: see https://stackoverflow.com/questions/23866902/how-to-detect-onscroll-event-on-an-iframe-the-iframes-source-is-of-the-same-do
-    global.onload = () => { this._sendToCloud({ view: context })};
-    global.onmousemove = () => { this._sendToCloud({ view: context })};
-    global.onmousedown = () => { this._sendToCloud({ view: context })}; // catches touchscreen presses as well
-    global.ontouchstart = () => { this._sendToCloud({ view: context })}; // catches touchscreen swipes as well
-    global.onclick = () => { this._sendToCloud({ view: context })}; // catches touchpad clicks as well
-    global.onkeypress = () => { this._sendToCloud({ view: context })};
-    global.addEventListener('scroll', () => { this._sendToCloud({ view: context })}, true);
+    global.onload = () => { this._sendEventToCloud({ view: context })};
+    global.onmousemove = () => { this._sendEventToCloud({ view: context })};
+    global.onmousedown = () => { this._sendEventToCloud({ view: context })}; // catches touchscreen presses as well
+    global.ontouchstart = () => { this._sendEventToCloud({ view: context })}; // catches touchscreen swipes as well
+    global.onclick = () => { this._sendEventToCloud({ view: context })}; // catches touchpad clicks as well
+    global.onkeypress = () => { this._sendEventToCloud({ view: context })};
+    global.addEventListener('scroll', () => { this._sendEventToCloud({ view: context })}, true);
   };
 
   stop = ({ pluginConfigs, contextType, context, global }) => {
@@ -34,9 +34,8 @@ export default class TrackUiActivity {
     global.addEventListener('scroll', null, true);
   };
 
-  _sendToCloud({ view }) {
+  _sendEventToCloud({ view, value = {} }) {
     const topic = TrackUiActivity.id();
-    const value = {};
 
     view.notifyClient(topic, value);
   }

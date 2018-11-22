@@ -1,4 +1,3 @@
-
 import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
 
@@ -18,7 +17,7 @@ export default class SiftView {
       context: this,
       global: window,
     });
-  }
+  };
 
   _startPlugins = ({ pluginConfigs }) => {
     this._pluginManager.start({
@@ -27,7 +26,7 @@ export default class SiftView {
       context: this,
       global: window,
     });
-  }
+  };
 
   _stopPlugins = ({ pluginConfigs }) => {
     this._pluginManager.stop({
@@ -36,15 +35,26 @@ export default class SiftView {
       context: this,
       global: window,
     });
-  }
-  
+  };
+
+  getPlugin = ({ id }) => {
+    return this._pluginManager
+      .getActivePlugins()
+      // NOTE: see https://stackoverflow.com/questions/28627908/call-static-methods-from-regular-es6-class-methods
+      .find(plugin => plugin.constructor.id() === id);
+  };
+
   publish(topic, value) {
-   this._proxy.postMessage({
-      method: 'notifyController',
-      params: {
-        topic: topic,
-        value: value } },
-      '*');
+    this._proxy.postMessage(
+      {
+        method: 'notifyController',
+        params: {
+          topic: topic,
+          value: value,
+        },
+      },
+      '*'
+    );
   }
 
   notifyClient(topic, value) {
@@ -103,18 +113,20 @@ export default class SiftView {
   }
 
   _registerMessageListeners() {
-    window.addEventListener('message', (e) => {
-      let method = e.data.method;
-      let params = e.data.params;
-      if(method === 'notifyView') {
-        this.controller.publish(params.topic, params.value);
-      }
-      else if(this[method]) {
-        this[method](params);
-      }
-      else {
-        console.warn('[SiftView]: method not implemented: ', method);
-      }
-    }, false);
+    window.addEventListener(
+      'message',
+      e => {
+        let method = e.data.method;
+        let params = e.data.params;
+        if (method === 'notifyView') {
+          this.controller.publish(params.topic, params.value);
+        } else if (this[method]) {
+          this[method](params);
+        } else {
+          console.warn('[SiftView]: method not implemented: ', method);
+        }
+      },
+      false
+    );
   }
 }
