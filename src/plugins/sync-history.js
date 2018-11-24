@@ -2,6 +2,8 @@ export default class SyncHistory {
   static id = () => 'sync-history';
   static contexts = () => ['view'];
 
+  _onNavigationHandlerFn = null;
+
   init = ({ pluginConfigs, contextType, context, global }) => {
     console.log('[SyncHistory::init()] called | contextType:', contextType);
 
@@ -18,6 +20,18 @@ export default class SyncHistory {
     );
 
     this._sendEventToCloud({ view: this._view, value: navigationOp });
+  }
+
+  onNavigation(handlerFn) {
+    this._onNavigationHandlerFn = handlerFn;
+  }
+
+  onMessage(data) {
+    console.log('[SyncHistory::onMessage] data:', data);
+
+    const { location, action } = data;
+
+    this._onNavigationHandlerFn({ location, action })    
   }
 
   _sendEventToCloud({ view, value = {} }) {

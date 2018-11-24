@@ -37,6 +37,10 @@ export default class SiftView {
     });
   };
 
+  _receivePluginMessages({ messages }) {
+    this._pluginManager.onMessages({ messages });
+  }
+
   getPlugin = ({ id }) => {
     return this._pluginManager
       .getActivePlugins()
