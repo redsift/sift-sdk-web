@@ -10,6 +10,10 @@ export default class SiftView {
     this._pluginManager = new PluginManager();
   }
 
+  // --------------------------------------------------------------------------
+  // Plugin management
+  // --------------------------------------------------------------------------
+
   _initPlugins = ({ pluginConfigs }) => {
     this._pluginManager.init({
       pluginConfigs,
@@ -48,6 +52,10 @@ export default class SiftView {
       .find(plugin => plugin.constructor.id() === id);
   };
 
+  // --------------------------------------------------------------------------
+  // Pub/sub management
+  // --------------------------------------------------------------------------
+
   publish(topic, value) {
     this._proxy.postMessage(
       {
@@ -73,6 +81,28 @@ export default class SiftView {
       '*'
     );
   }
+
+  _registerMessageListeners() {
+    window.addEventListener(
+      'message',
+      e => {
+        let method = e.data.method;
+        let params = e.data.params;
+        if (method === 'notifyView') {
+          this.controller.publish(params.topic, params.value);
+        } else if (this[method]) {
+          this[method](params);
+        } else {
+          console.warn('[SiftView]: method not implemented: ', method);
+        }
+      },
+      false
+    );
+  }
+  
+  // --------------------------------------------------------------------------
+  // Message channel to Cloud
+  // --------------------------------------------------------------------------
 
   showOAuthPopup({ provider, options = null }) {
     const topic = 'showOAuthPopup';
@@ -116,21 +146,13 @@ export default class SiftView {
     this.notifyClient(topic, value);
   }
 
-  _registerMessageListeners() {
-    window.addEventListener(
-      'message',
-      e => {
-        let method = e.data.method;
-        let params = e.data.params;
-        if (method === 'notifyView') {
-          this.controller.publish(params.topic, params.value);
-        } else if (this[method]) {
-          this[method](params);
-        } else {
-          console.warn('[SiftView]: method not implemented: ', method);
-        }
-      },
-      false
-    );
+  setupSyncHistory({ history, initialPath }) {
+    const syncHistoryPlugin = this.getPlugin({ id: 'sync-history' });
+
+    if (syncHistoryPlugin) {
+      syncHistoryPlugin.setup({ history, initialPath });
+    } else {
+      console.log('[SiftSdkWeb] ERROR: To use `syncHistory` please enable the plugin first!');
+    }
   }
 }

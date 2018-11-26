@@ -13,6 +13,25 @@ export default class SyncHistory {
     return true;
   };
 
+  setup({ history, initialPath = null }) {
+    history.listen(navigationOp => {
+      console.log('[SyncHistory] history change event::', JSON.stringify(navigationOp));
+
+      this.navigate(navigationOp);
+    });
+
+    this.onNavigation(({ location, action }) => {
+      console.log(`[sift-dmarc-insight] onNavigation | pathname: ${location.pathname} | action: ${action}`);
+      history[action.toLowerCase()](location.pathname);
+    });
+
+    console.log('[SyncHistory::setup] initialPath:', initialPath);
+
+    if (initialPath) {
+      history.push(initialPath);
+    }
+  }
+
   navigate(navigationOp) {
     console.log(
       '[SyncHistory::sendEvent] location | navigationOp:',
