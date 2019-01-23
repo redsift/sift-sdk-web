@@ -17,25 +17,24 @@ export default class SyncHistory {
 
   setup({ history, initialPath = null }) {
     history.listen(navigationOp => {
-      console.log('[SyncHistory] history change event:', JSON.stringify(navigationOp));
-      console.log('[SyncHistory] this._cloudNavigationInProgress:', this._cloudNavigationInProgress);
+      // console.log('[SyncHistory] history change event:', JSON.stringify(navigationOp));
 
       // NOTE: prevent recursion when the back/next button is pressed in Cloud:
       if (!this._cloudNavigationInProgress) {
         this.navigate(navigationOp);
       } else {
         this._cloudNavigationInProgress = false;
-        console.log('[SyncHistory] preventing history loop...', this._cloudNavigationInProgress);
+        // console.log('[SyncHistory] preventing history loop...', this._cloudNavigationInProgress);
       }
     });
 
     this.onNavigation(({ location, action }) => {
-      console.log(`[sift-dmarc-insight] onNavigation | pathname: ${location.pathname} | action: ${action} | cloudNavigationInProgress: ${this._cloudNavigationInProgress}`);
+      // console.log(`[sift-dmarc-insight] onNavigation | pathname: ${location.pathname} | action: ${action} | cloudNavigationInProgress: ${this._cloudNavigationInProgress}`);
       this._cloudNavigationInProgress = true;
       history[action.toLowerCase()](location.pathname);
     });
 
-    console.log('[SyncHistory::setup] initialPath:', initialPath);
+    // console.log('[SyncHistory::setup] initialPath:', initialPath);
 
     if (initialPath) {
       history.push(initialPath);
@@ -43,10 +42,10 @@ export default class SyncHistory {
   }
 
   navigate(navigationOp) {
-    console.log(
-      '[SyncHistory::sendEvent] location | navigationOp:',
-      navigationOp
-    );
+    // console.log(
+    //   '[SyncHistory::sendEvent] location | navigationOp:',
+    //   navigationOp
+    // );
 
     this._sendEventToCloud({ view: this._view, value: navigationOp });
   }
@@ -60,7 +59,8 @@ export default class SyncHistory {
 
     const { location, action } = data;
 
-    this._onNavigationHandlerFn({ location, action })    
+    this._onNavigationHandlerFn &&
+      this._onNavigationHandlerFn({ location, action });
   }
 
   _sendEventToCloud({ view, value = {} }) {
