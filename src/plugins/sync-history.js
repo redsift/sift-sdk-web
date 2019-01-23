@@ -3,6 +3,8 @@ export default class SyncHistory {
   static contexts = () => ['view'];
 
   _onNavigationHandlerFn = null;
+  _view = null;
+  _cloudNavigationInProgress = false;
 
   init = ({ pluginConfigs, contextType, context, global }) => {
     console.log('[SyncHistory::init()] called | contextType:', contextType);
@@ -15,13 +17,21 @@ export default class SyncHistory {
 
   setup({ history, initialPath = null }) {
     history.listen(navigationOp => {
-      console.log('[SyncHistory] history change event::', JSON.stringify(navigationOp));
+      console.log('[SyncHistory] history change event:', JSON.stringify(navigationOp));
+      console.log('[SyncHistory] this._cloudNavigationInProgress:', this._cloudNavigationInProgress);
 
-      this.navigate(navigationOp);
+      // NOTE: prevent recursion when the back/next button is pressed in Cloud:
+      if (!this._cloudNavigationInProgress) {
+        this.navigate(navigationOp);
+      } else {
+        this._cloudNavigationInProgress = false;
+        console.log('[SyncHistory] preventing history loop...', this._cloudNavigationInProgress);
+      }
     });
 
     this.onNavigation(({ location, action }) => {
-      console.log(`[sift-dmarc-insight] onNavigation | pathname: ${location.pathname} | action: ${action}`);
+      console.log(`[sift-dmarc-insight] onNavigation | pathname: ${location.pathname} | action: ${action} | cloudNavigationInProgress: ${this._cloudNavigationInProgress}`);
+      this._cloudNavigationInProgress = true;
       history[action.toLowerCase()](location.pathname);
     });
 
