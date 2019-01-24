@@ -16,11 +16,16 @@ export default class SyncHistory {
   };
 
   setup({ history, initialPath = null }) {
-    history.listen(navigationOp => {
+    // NOTE: react-router v3 sends the `action` as part of the `navigationOp`, react-router v4 sends it as a separate parameter:
+    history.listen((navigationOp, action = null) => {
       // console.log('[SyncHistory] history change event:', JSON.stringify(navigationOp));
 
       // NOTE: prevent recursion when the back/next button is pressed in Cloud:
       if (!this._cloudNavigationInProgress) {
+        if (!navigationOp.action) {
+          navigationOp.action = action;
+        }
+
         this.navigate(navigationOp);
       } else {
         this._cloudNavigationInProgress = false;
