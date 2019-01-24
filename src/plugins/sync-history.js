@@ -36,7 +36,7 @@ export default class SyncHistory {
     this.onNavigation(({ location, action }) => {
       // console.log(`[sift-dmarc-insight] onNavigation | pathname: ${location.pathname} | action: ${action} | cloudNavigationInProgress: ${this._cloudNavigationInProgress}`);
       this._cloudNavigationInProgress = true;
-      history[action.toLowerCase()](location.pathname);
+      history[action.toLowerCase()](location.pathname + location.search);
     });
 
     // console.log('[SyncHistory::setup] initialPath:', initialPath);
