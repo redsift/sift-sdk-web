@@ -1,5 +1,6 @@
 import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
+import sha256 from 'js-sha256';
 
 export default class SiftView {
   constructor() {
@@ -99,15 +100,21 @@ export default class SiftView {
       false
     );
   }
-  
+
   // --------------------------------------------------------------------------
   // Message channel to Cloud
   // --------------------------------------------------------------------------
 
   showOAuthPopup({ provider, options = null }) {
     const topic = 'showOAuthPopup';
-    const value = { provider, options };
-
+    let opt = options;
+    // If an email is passed, hash it into a subject
+    if (options && typeof options === 'object' && options.email) {
+      const { email, ...others } = options;
+      const subject = sha256(email).substr(0, 16);
+      opt = { subject, ...others };
+    }
+    const value = { provider, options: opt };
     this.notifyClient(topic, value);
   }
 
