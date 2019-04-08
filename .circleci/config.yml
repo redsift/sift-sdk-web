@@ -15,7 +15,7 @@ jobs:
             b=(${CIRCLE_BRANCH/-/ })
             if [ $b == "release" ]; then
               echo "Publishing to NPM"
-              # npm publish --access=public
+              npm publish --access=public
             fi
 
 
