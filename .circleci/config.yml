@@ -1,0 +1,26 @@
+version: 2
+
+jobs:
+  build:
+    shell: /bin/bash
+    docker:
+      - image: quay.io/redsift/nodeos
+    steps:
+      - checkout
+      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run: npm i
+      - run: npm test
+      - run:
+          command: |
+            b=(${CIRCLE_BRANCH/-/ })
+            if [ $b == "master" ]; then
+              echo "Publishing to NPM"
+              # npm publish --access=public
+            fi
+
+
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build
