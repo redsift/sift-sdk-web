@@ -13,7 +13,7 @@ jobs:
       - run:
           command: |
             b=(${CIRCLE_BRANCH/-/ })
-            if [ $b == "master" ]; then
+            if [ $b == "release" ]; then
               echo "Publishing to NPM"
               # npm publish --access=public
             fi
