@@ -10,7 +10,7 @@
   "scripts": {
     "build": "npm run clean && rollup-bundler",
     "clean": "rm -rf ./dist",
-    "prepublish": "npm run build",
+    "prepare": "npm run build",
     "pretest": "npm outdated || true",
     "test": "echo \"no test specified\" && exit 0"
   },
