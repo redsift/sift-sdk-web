@@ -132,9 +132,9 @@ export default class SiftView {
     this.notifyClient(topic, value);
   }
 
-  login() {
+  login({ redirectUri }) {
     const topic = 'login';
-    const value = {};
+    const value = { redirectUri };
 
     this.notifyClient(topic, value);
   }
