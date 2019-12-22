@@ -4,7 +4,7 @@ jobs:
   build:
     shell: /bin/bash
     docker:
-      - image: quay.io/redsift/nodeos
+      - image: quay.io/redsift/nodeos:8.10.0
     steps:
       - checkout
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
