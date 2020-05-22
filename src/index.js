@@ -2,11 +2,15 @@ import EmailClientController from './core/email-client-controller';
 import SiftView from './core/sift-view.js';
 import SiftController from './core/sift-controller.js';
 import SiftStorage from './core/sift-storage.js';
+import useSiftView from './core/useSiftView.js';
+import useSiftController from './core/useSiftController.js';
 
 export { EmailClientController };
 export { SiftController };
 export { SiftStorage };
 export { SiftView };
+export { useSiftView };
+export { useSiftController };
 
 /**
  * SiftView
@@ -45,9 +49,9 @@ export function registerEmailClientController(emailClientController) {
  * Local functions
  */
 function _create(Base, methods) {
-  let Creature = function() {
+  let Creature = function () {
     Base.call(this);
-    if(this.init && typeof this.init === 'function') {
+    if (this.init && typeof this.init === 'function') {
       this.init();
     }
   };
