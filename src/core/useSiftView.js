@@ -8,7 +8,6 @@ const useSiftView = ({ presentView: present, willPresentView }) => {
   const [proxy] = useState(parent);
   const [controller] = useState(new Observable());
   const [pluginManager] = useState(new PluginManager());
-  const [render, setRender] = useState(null);
 
   const notifyClient = (topic, value = {}) => {
     proxy.postMessage(
@@ -130,7 +129,7 @@ const useSiftView = ({ presentView: present, willPresentView }) => {
   };
 
   const presentView = (props) => {
-    setRender(present(props, siftView));
+    present(props, siftView);
   };
 
   siftView['presentView'] = presentView;
@@ -140,6 +139,7 @@ const useSiftView = ({ presentView: present, willPresentView }) => {
       window.addEventListener(
         'message',
         ({ data: { method, params } }) => {
+          console.log('method', method, 'params', params);
           if (method === 'notifyView') {
             controller.publish(params.topic, params.value);
           } else if (siftView[method]) {
@@ -154,7 +154,7 @@ const useSiftView = ({ presentView: present, willPresentView }) => {
     _registerMessageListeners();
   }, []);
 
-  return [render, siftView];
+  return siftView;
 };
 
 export default useSiftView;
