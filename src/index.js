@@ -1,16 +1,13 @@
+/* eslint-disable no-unused-vars */
 import EmailClientController from './core/email-client-controller';
 import SiftView from './core/sift-view';
 import SiftController from './core/sift-controller';
 import SiftStorage from './core/sift-storage';
-import useSiftView from './core/useSiftView';
-import useSiftController from './core/useSiftController';
 
 export { EmailClientController };
 export { SiftController };
 export { SiftStorage };
 export { SiftView };
-export { useSiftView };
-export { useSiftController };
 
 /**
  * SiftView
