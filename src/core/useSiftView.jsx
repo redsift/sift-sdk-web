@@ -3,11 +3,12 @@ import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
 import sha256 from 'js-sha256';
 
-const useSiftView = ({ presentView, willPresentView }) => {
+const useSiftView = ({ presentView: present, willPresentView }) => {
   const [resizeHandler] = useState(null);
   const [proxy] = useState(parent);
   const [controller] = useState(new Observable());
   const [pluginManager] = useState(new PluginManager());
+  const [render, setRender] = useState(null);
 
   const notifyClient = (topic, value = {}) => {
     proxy.postMessage(
@@ -128,6 +129,12 @@ const useSiftView = ({ presentView, willPresentView }) => {
     willPresentView,
   };
 
+  const presentView = (props) => {
+    setRender(present(props, siftView));
+  };
+
+  siftView['presentView'] = presentView;
+
   useEffect(() => {
     const _registerMessageListeners = () => {
       window.addEventListener(
@@ -147,7 +154,7 @@ const useSiftView = ({ presentView, willPresentView }) => {
     _registerMessageListeners();
   }, []);
 
-  return siftView;
+  return [render, siftView];
 };
 
 export default useSiftView;
