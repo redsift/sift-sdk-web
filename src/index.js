@@ -9,7 +9,8 @@ export { EmailClientController };
 export { SiftController };
 export { SiftStorage };
 export { SiftView };
-export { useSiftController, useSiftView };
+export { useSiftController };
+export { useSiftView };
 
 /**
  * SiftView
