@@ -3,7 +3,8 @@ import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
 import sha256 from 'js-sha256';
 
-const useSiftView = ({ willPresentView }) => {
+const useSiftView = (props = {}) => {
+  const { willPresentView } = props;
   const [resizeHandler] = useState(null);
   const [proxy] = useState(parent);
   const [controller] = useState(new Observable());
@@ -106,6 +107,10 @@ const useSiftView = ({ willPresentView }) => {
     }
   };
 
+  const presentView = (props) => {
+    setParams(props);
+  };
+
   const siftView = {
     resizeHandler,
     proxy,
@@ -128,12 +133,6 @@ const useSiftView = ({ willPresentView }) => {
     presentView,
     willPresentView,
   };
-
-  const presentView = (props) => {
-    setParams(props);
-  };
-
-  siftView['presentView'] = presentView;
 
   useEffect(() => {
     const _registerMessageListeners = () => {
