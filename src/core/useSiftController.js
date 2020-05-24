@@ -6,9 +6,9 @@ import SiftStorage from './sift-storage';
 import { Storage } from '@redsift/rs-storage';
 
 const useSiftController = ({ loadView }) => {
-  const [proxy] = useState(self); // TODO: self
+  const [proxy] = useState(self);
   const [view] = useState(new Observable());
-  const [emailclient] = useState(new EmailClient(self)); //TODO: self
+  const [emailclient] = useState(new EmailClient(self));
   const [pluginManager] = useState(new PluginManager());
   const [storage, setStorage] = useState(null);
   const [account, setAccount] = useState(null);
@@ -18,7 +18,7 @@ const useSiftController = ({ loadView }) => {
     pluginManager.init({
       pluginConfigs,
       contextType: 'controller',
-      context: this, //TODO: this
+      context: {},
       global: self,
     });
   };
@@ -27,7 +27,7 @@ const useSiftController = ({ loadView }) => {
     pluginManager.start({
       pluginConfigs,
       contextType: 'controller',
-      context: this, //TODO: this
+      context: {},
       global: self,
     });
   };
@@ -36,7 +36,7 @@ const useSiftController = ({ loadView }) => {
     pluginManager.stop({
       pluginConfigs,
       contextType: 'controller',
-      context: this, //TODO: this
+      context: {},
       global: self,
     });
   };
@@ -47,7 +47,6 @@ const useSiftController = ({ loadView }) => {
 
   const _init = (params) => {
     const { dbSchema, accountGuid, siftGuid } = params;
-    // console.log('[SiftController::_init]: ', params);
     setStorage(new SiftStorage());
     storage.init(
       new Storage({
@@ -84,12 +83,10 @@ const useSiftController = ({ loadView }) => {
     if (!proxy) {
       return;
     }
-    // console.log('[SiftController::_terminate]');
     proxy.close();
   };
 
   const _loadView = async (params) => {
-    // console.log('[SiftController::_loadView]: ', params);
     if (!loadView) {
       console.error(
         '[SiftController::_loadView]: Sift controller must implement the loadView method'
@@ -118,7 +115,6 @@ const useSiftController = ({ loadView }) => {
   };
 
   const _storageUpdated = (params) => {
-    // console.log('[SiftController::_storageUpdated]: ', params);
     // Notify the * listeners
     storage.publish('*', params);
     params.forEach((b) => {
@@ -157,7 +153,6 @@ const useSiftController = ({ loadView }) => {
         return;
       }
       proxy.onmessage = ({ data: { method, params } }) => {
-        // console.log('[SiftController::onmessage]: ', e.data);
         if (siftController['_' + method]) {
           siftController['_' + method](params);
         } else {
@@ -171,6 +166,6 @@ const useSiftController = ({ loadView }) => {
     _registerMessageListeners();
   }, []);
 
-  return { siftController };
+  return siftController;
 };
 export default useSiftController;
