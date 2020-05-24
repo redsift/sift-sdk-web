@@ -1,11 +1,14 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "1.0.0-beta.8",
+  "version": "1.0.0-beta.10",
   "description": "SDK for developing web-based Sifts.",
   "module": "dist/sift-sdk-web.esm.js",
   "main": "dist/sift-sdk-web.umd.js",
   "browser": "dist/sift-sdk-web.umd.js",
-  "esnext": "src/index.js",
+  "files": [
+    "dist",
+    "react.js"
+  ],
   "scripts": {
     "build": "npm run clean && rollup --config",
     "clean": "rm -rf ./dist",
