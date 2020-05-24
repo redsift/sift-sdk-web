@@ -3,13 +3,12 @@ import EmailClientController from './core/email-client-controller';
 import SiftView from './core/sift-view';
 import SiftController from './core/sift-controller';
 import SiftStorage from './core/sift-storage';
-import { useSiftController, useSiftView } from './react';
+import { useSiftView } from './react';
 
 export { EmailClientController };
 export { SiftController };
 export { SiftStorage };
 export { SiftView };
-export { useSiftController };
 export { useSiftView };
 
 /**
