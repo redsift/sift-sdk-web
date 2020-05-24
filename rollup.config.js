@@ -1,10 +1,20 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
+import { getBabelOutputPlugin } from '@rollup/plugin-babel';
 import pkg from './package.json';
+
+const babelConfig = {
+  presets: [['@babel/preset-env', { modules: 'umd' }]],
+  plugins: [
+    '@babel/plugin-transform-runtime',
+    '@babel/plugin-proposal-class-properties',
+  ],
+};
 
 export default [
   {
     input: './src/index.js',
+    plugins: [resolve(), commonjs()],
     output: [
       {
         file: pkg.module,
@@ -13,26 +23,27 @@ export default [
       },
       {
         file: pkg.browser,
-        format: 'umd',
+        format: 'esm',
         name: 'sift-sdk-web',
+        plugins: [getBabelOutputPlugin(babelConfig)],
       },
     ],
-    plugins: [resolve(), commonjs()],
   },
   {
     input: './src/react.js',
+    plugins: [resolve(), commonjs()],
     output: [
       {
         file: 'dist/react.esm.js',
         format: 'es',
-        name: 'sift-sdk-web-react',
+        name: 'sift-sdk-web/react',
       },
       {
         file: 'dist/react.umd.js',
-        format: 'umd',
-        name: 'sift-sdk-web-react',
+        format: 'esm',
+        name: 'sift-sdk-web/react',
+        plugins: [getBabelOutputPlugin(babelConfig)],
       },
     ],
-    plugins: [resolve(), commonjs()],
   },
 ];
