@@ -1,7 +1,8 @@
+/* eslint-disable no-unused-vars */
 import EmailClientController from './core/email-client-controller';
-import SiftView from './core/sift-view.js';
-import SiftController from './core/sift-controller.js';
-import SiftStorage from './core/sift-storage.js';
+import SiftView from './core/sift-view';
+import SiftController from './core/sift-controller';
+import SiftStorage from './core/sift-storage';
 
 export { EmailClientController };
 export { SiftController };
@@ -45,9 +46,9 @@ export function registerEmailClientController(emailClientController) {
  * Local functions
  */
 function _create(Base, methods) {
-  let Creature = function() {
+  let Creature = function () {
     Base.call(this);
-    if(this.init && typeof this.init === 'function') {
+    if (this.init && typeof this.init === 'function') {
       this.init();
     }
   };
