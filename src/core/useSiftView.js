@@ -139,6 +139,7 @@ const useSiftView = (props = {}) => {
       window.addEventListener(
         'message',
         ({ data: { method, params } }) => {
+          `[SiftView]: message received ${method}: ${params}`;
           if (method === 'notifyView') {
             controller.publish(params.topic, params.value);
           } else if (siftView[method]) {

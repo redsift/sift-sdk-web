@@ -53,7 +53,7 @@ export default class SiftController {
   _registerMessageListeners() {
     if (!this._proxy) return;
     this._proxy.onmessage = e => {
-      // console.log('[SiftController::onmessage]: ', e.data);
+      console.log('[SiftController::onmessage]: ', e.data);
       let method = e.data.method;
       if (this['_' + method]) {
         this['_' + method](e.data.params);
@@ -64,7 +64,7 @@ export default class SiftController {
   }
 
   _init(params) {
-    // console.log('[SiftController::_init]: ', params);
+    console.log('[SiftController::_init]: ', params);
     this.storage = new SiftStorage();
     this.storage.init(
       new Storage({
@@ -104,7 +104,7 @@ export default class SiftController {
   }
 
   _loadView(params) {
-    // console.log('[SiftController::_loadView]: ', params);
+    console.log('[SiftController::_loadView]: ', params);
     if (!this.loadView) {
       console.error(
         '[SiftController::_loadView]: Sift controller must implement the loadView method'
@@ -119,7 +119,7 @@ export default class SiftController {
       params: params.data,
     });
 
-    // console.log('[SiftController::_loadView] loadView result: ', result);
+    console.log('[SiftController::_loadView] loadView result: ', result);
     if (result.data && 'function' === typeof result.data.then) {
       if (result.html) {
         this._triggerSiftViewInit(params, { html: result.html });
