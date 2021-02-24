@@ -1,6 +1,6 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SDK for developing web-based Sifts.",
   "module": "dist/sift-sdk-web.esm.js",
   "main": "dist/sift-sdk-web.umd.js",
@@ -49,8 +49,8 @@
     "rollup": "^2.10.9"
   },
   "peerDependencies": {
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": ">=16.13.1",
+    "react-dom": ">=16.13.1"
   },
   "husky": {
     "hooks": {
