@@ -15,15 +15,16 @@ consumer.
   every message was readable by any embedder. Pass `clientOrigin` explicitly,
   or `clientOrigin: '*'` to accept the unpinned behaviour.
 - **`event.source` is checked strictly.** Inbound messages are accepted only
-  from the embedding window. The previous exception for an absent `source` is
-  gone: `MessageEvent.source` is null for anything that is not a window, so a
-  service worker, `MessagePort` or `BroadcastChannel` on the view's own origin
-  could otherwise drive the whole inbound protocol. A view that is not embedded
-  still works, since `parent === window` there.
+  from the embedding window. Two exceptions are gone: one for an absent
+  `source`, which covered a sender that had since closed, and one for this
+  window posting to itself. A client does neither, so the check is now simply
+  "must be the embedding window". A view that is not embedded still works,
+  since `parent === window` there.
 - **The trusted origin set is exactly the client**; the view's own origin is no
   longer added to it.
 - **Plugins receive `{ notifyClient }`** as their context rather than the whole
-  view.
+  view. It is the view's own method, so a sift overriding `notifyClient` still
+  sees what its plugins send.
 - **ESM only.** The package publishes `.mjs` bundles behind an `exports` map,
   with no CommonJS or UMD build. The 2.0.3 "UMD" build was not usable as one
   anyway — loaded via a script tag it threw `ReferenceError: require is not

@@ -407,11 +407,11 @@ channel are checked.
 2. `event.source` **is** the embedding window — a trusted origin is not enough
    on its own, because sibling frames and popups on the client's origin can
    hold a reference to this frame and post to it. Strict equality, with no
-   exception for an absent `source`: `MessageEvent.source` is null for anything
-   that is not a window, so a service worker, `MessagePort` or
-   `BroadcastChannel` on this very origin would otherwise be able to drive the
-   whole inbound protocol. A view that is not embedded still works, since
-   `parent === window` there;
+   exception for an absent `source` and none for a self-post: cross-document
+   `postMessage` sets `source` to the sending window, and it is null only when
+   that window has since been discarded, so those exceptions covered a closed
+   sender and this window posting to itself — neither of which a client does.
+   A view that is not embedded still works, since `parent === window` there;
 3. the payload is an object with a string `method`.
 
 ### How the origin is resolved
@@ -575,13 +575,14 @@ silent.
   old unpinned behaviour if you need production working first.
 - **`event.source` is now checked strictly.** A message whose `source` is not
   the embedding window is dropped, including one with no `source` at all. If
-  something in your view was driving the protocol from a service worker, a
-  `MessagePort`, or `window.postMessage` to itself, it will stop being
-  delivered.
+  anything in your view was driving the protocol by posting to its own window,
+  or by synthesising a `message` event, it will stop being delivered.
 - **The trusted set no longer includes your own origin.** It is exactly the
   client. Nothing legitimate relied on this once the source check is strict.
 - **Plugins receive `{ notifyClient }`, not the whole view.** Only relevant if
-  you wrote a plugin against the internal context object.
+  you wrote a plugin against the internal context object. It is still the
+  view's own `notifyClient`, so a sift that overrides that method still sees
+  what its plugins send.
 
 Nothing else in the API changed, and `SiftView` and `useSiftView` are now the
 same implementation underneath, so they cannot disagree about any of it.

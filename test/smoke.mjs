@@ -126,9 +126,8 @@ async function main() {
     'trusted origin from a non-embedding window is ignored'
   );
 
-  // `MessageEvent.source` is null for anything that is not a window, so a
-  // service worker, MessagePort or BroadcastChannel on this very origin could
-  // otherwise drive the whole inbound protocol
+  // A `source` of null means the sending window has been discarded — the case
+  // the old leniency was written for. A live client always has one.
   presented = null;
   deliver(
     'https://app.redsift.com',
@@ -138,7 +137,7 @@ async function main() {
   assert.strictEqual(
     presented,
     null,
-    'a message with no source (service worker, MessagePort) is ignored'
+    'a message with no source at all is ignored'
   );
 
   // the window itself is not a special case either — only the window this
@@ -551,6 +550,61 @@ async function main() {
     'all allowed origins stay trusted for inbound'
   );
   multiView.destroy();
+
+  // ---- a sift's own override still intercepts internal calls ---------------
+  // `createSiftView` puts a sift's methods on the prototype, so an override of
+  // `notifyClient` shadows the SDK's. The client-action helpers must reach it
+  // through the instance, not through a captured copy, or an override silently
+  // stops seeing everything except direct calls.
+  const intercepted = [];
+  const overridingView = createSiftView({
+    notifyClient(topic, value) {
+      intercepted.push([topic, value]);
+      // deliberately does not forward: an override may choose to swallow
+    },
+  });
+  overridingView.login({ redirectUri: '/back' });
+  overridingView.navigate({ href: '/x' });
+  overridingView.showOAuthPopup({ provider: 'google' });
+  overridingView.signup();
+  overridingView.logout();
+  overridingView.removeOAuthIdentity({ provider: 'google' });
+  assert.deepStrictEqual(
+    intercepted.map(([topic]) => topic),
+    [
+      'login',
+      'navigate',
+      'showOAuthPopup',
+      'signup',
+      'logout',
+      'showOAuthRemovePopup',
+    ],
+    "a sift's notifyClient override intercepts every client action"
+  );
+  assert.deepStrictEqual(
+    intercepted[0][1],
+    { redirectUri: '/back' },
+    'the override receives the value the helper built'
+  );
+  // ...and what a plugin sends goes through it too: plugins used to receive
+  // the view itself as their context, so an override caught their sends
+  overridingView._pluginManager._pluginFactory = [
+    class Sender {
+      static id = () => 'sender';
+      static contexts = () => ['view'];
+      init = ({ context }) => {
+        context.notifyClient('from-plugin', { ok: true });
+        return true;
+      };
+    },
+  ];
+  overridingView._initPlugins({ pluginConfigs: [{ id: 'sender' }] });
+  assert.deepStrictEqual(
+    intercepted[intercepted.length - 1],
+    ['from-plugin', { ok: true }],
+    "a plugin's notifyClient reaches the sift's override as well"
+  );
+  overridingView.destroy();
 
   // ---- a view that is not embedded (standalone development) ----------------
   // `parent === window` there, so the window this view talks to is itself:

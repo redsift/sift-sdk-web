@@ -32,17 +32,24 @@ export default class SiftView {
       proxy: this._proxy,
       targetOrigin: policy.targetOrigin,
     });
+    // Late-bound on purpose. A sift's methods go on the prototype, so
+    // `createSiftView({ notifyClient })` shadows the SDK's — and everything
+    // that sends on the view's behalf has to reach it through the instance to
+    // see that. Capturing `outbound.notifyClient` here instead would leave an
+    // override intercepting direct calls only, silently missing `login`,
+    // `navigate`, the OAuth helpers and anything a plugin sends.
+    const notifyClient = (topic, value) => this.notifyClient(topic, value);
     const plugins = createPluginSurface({
       pluginManager: this._pluginManager,
-      notifyClient: outbound.notifyClient,
+      notifyClient,
       global: window,
     });
     this._core = {
       ...outbound,
       ...plugins,
       ...createClientActions({
-        notifyClient: outbound.notifyClient,
-        getPlugin: plugins.getPlugin,
+        notifyClient,
+        getPlugin: (request) => this.getPlugin(request),
       }),
     };
 

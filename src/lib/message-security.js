@@ -114,11 +114,12 @@ export function isTrustedOrigin(trustedOrigins, origin) {
  * origin can hold this frame's WindowProxy and post to it (this product opens
  * OAuth popups on exactly that origin).
  *
- * Strict equality, with no exception for an absent `source`. That exception
- * used to exist for hosts that relay; no host does, and it was the wider hole
- * of the two — `MessageEvent.source` is null for anything that is not a
- * window, so a service worker, MessagePort or BroadcastChannel on this
- * origin could otherwise drive the whole inbound protocol.
+ * Strict equality, with no exception for an absent `source` and none for a
+ * self-post. Cross-document `postMessage` sets `source` to the sending window,
+ * and it is null only when that window has since been discarded — which is
+ * what the old leniency was written for. So the two removed exceptions covered
+ * a sender that has closed and this window posting to itself; a client does
+ * neither, which leaves "must be the embedding window" as the whole check.
  *
  * A view that is not embedded still works: `parent === window` there, so the
  * expected source is this window and a self-post is accepted.
