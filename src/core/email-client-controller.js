@@ -1,3 +1,5 @@
+import { resolveDispatchTarget } from '../lib/message-security';
+
 // Internal machinery that must never be invokable through an inbound
 // worker message ('registerMessageListeners' would otherwise install a
 // duplicate listener per message)
@@ -22,11 +24,15 @@ export default class EmailClientController {
       ) {
         return;
       }
-      const handlerName = '_' + data.method;
-      const handler = NON_DISPATCHABLE_HANDLERS.includes(handlerName)
-        ? null
-        : this[handlerName];
-      if (typeof handler === 'function') {
+      // resolveDispatchTarget also rejects functions inherited from
+      // Object.prototype: '_' + '_defineSetter__' would otherwise resolve to
+      // __defineSetter__ and throw out of this listener
+      const handler = resolveDispatchTarget(
+        this,
+        '_' + data.method,
+        NON_DISPATCHABLE_HANDLERS
+      );
+      if (handler) {
         // Normalize null to undefined so handlers' destructuring defaults apply
         handler.call(this, data.params == null ? undefined : data.params);
       }

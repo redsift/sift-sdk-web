@@ -124,11 +124,28 @@ async function main() {
     'destroy is not message-dispatchable'
   );
 
+  // the raw outbound emitters must not be drivable by an inbound message
+  const sentBeforeReflect = sent.length;
+  deliver('https://app.redsift.com', {
+    method: 'publish',
+    params: { topic: 'reflected' },
+  });
+  deliver('https://app.redsift.com', {
+    method: 'notifyClient',
+    params: { topic: 'reflected' },
+  });
+  assert.strictEqual(
+    sent.length,
+    sentBeforeReflect,
+    'publish/notifyClient are not message-dispatchable'
+  );
+
   // ---- handlers tolerate missing or null params ------------------------------
   deliver('https://app.redsift.com', { method: '_initPlugins' }); // no params
   deliver('https://app.redsift.com', { method: '_initPlugins', params: null });
   deliver('https://app.redsift.com', { method: '_receivePluginMessages' });
   deliver('https://app.redsift.com', { method: 'login' }); // destructuring must not throw
+  deliver('https://app.redsift.com', { method: 'getPlugin' }); // no params
   deliver('https://app.redsift.com', {
     method: 'showOAuthPopup',
     params: null,
@@ -261,6 +278,39 @@ async function main() {
   });
   assert.strictEqual(presented, null, 'destroy removes the message listener');
 
+  // ---- origin policy edge cases ---------------------------------------------
+  // An opaque referrer (file:, data:, sandboxed document) serializes its
+  // origin as the literal "null"; trusting that would trust every opaque
+  // context alike, so the policy must fall back to the legacy behaviour
+  fakeWindow.document.referrer = 'file:///tmp/sift.html';
+  const opaqueView = createSiftView({});
+  assert.strictEqual(
+    opaqueView._trustedOrigins,
+    null,
+    'opaque referrer is not trusted as an origin'
+  );
+  assert.strictEqual(opaqueView._targetOrigin, '*');
+  opaqueView.destroy();
+  fakeWindow.document.referrer = 'https://app.redsift.com/home/abc';
+
+  // With several allowed client origins, outbound must be pinned to the one
+  // actually embedding this view — not blindly to the first entry, which the
+  // browser would silently drop
+  const multiView = createSiftView(
+    {},
+    { clientOrigin: ['https://other.example', 'https://app.redsift.com'] }
+  );
+  assert.strictEqual(
+    multiView._targetOrigin,
+    'https://app.redsift.com',
+    'outbound pinned to the embedding client among allowed origins'
+  );
+  assert.ok(
+    multiView._trustedOrigins.indexOf('https://other.example') !== -1,
+    'all allowed origins stay trusted for inbound'
+  );
+  multiView.destroy();
+
   // ---- SiftController in a fake worker scope --------------------------------
   const workerPosts = [];
   const workerListeners = [];
@@ -337,6 +387,11 @@ async function main() {
   workerDeliver(null);
   workerDeliver({ method: 7 });
   workerDeliver({ method: 'proxy' }); // '_proxy' is not a function
+  // the '_' prefix must not reach Object.prototype built-ins:
+  // '_' + '_defineGetter__' would resolve to __defineGetter__
+  workerDeliver({ method: '_defineGetter__', params: {} });
+  workerDeliver({ method: '_defineSetter__', params: {} });
+  workerDeliver({ method: '_lookupGetter__', params: {} });
 
   // internal machinery is not message-dispatchable: 'registerMessageListeners'
   // must not install a second listener, and parameterless protocol messages
@@ -380,6 +435,7 @@ async function main() {
   );
   workerDeliver({ method: 'emailStats' }); // no params: must not throw
   workerDeliver({ method: 'getThreadRowDisplayInfo' }); // no params: must not throw
+  workerDeliver({ method: '_defineSetter__', params: {} }); // prototype built-in
   workerDeliver({ method: 'getThreadRowDisplayInfo', params: { tris: null } });
   // malformed tris entries must be skipped, not throw, and still answer
   const emailPostsBefore = workerPosts.length;

@@ -4,16 +4,9 @@ import {
   isTrustedOrigin,
   resolveDispatchTarget,
   resolveMessagePolicy,
+  NON_DISPATCHABLE_VIEW_METHODS,
 } from '../lib/message-security';
 import { withHashedEmailSubject } from '../lib/oauth-options';
-
-// Internal lifecycle/dispatch machinery that must never be invokable
-// through an inbound postMessage, even from a trusted origin
-const NON_DISPATCHABLE_METHODS = [
-  'destroy',
-  '_onWindowMessage',
-  '_registerMessageListeners',
-];
 
 export default class SiftView {
   constructor({ clientOrigin } = {}) {
@@ -72,7 +65,7 @@ export default class SiftView {
     this._pluginManager.onMessages({ messages });
   }
 
-  getPlugin = ({ id }) => {
+  getPlugin = ({ id } = {}) => {
     return (
       this._pluginManager
         .getActivePlugins()
@@ -130,7 +123,11 @@ export default class SiftView {
       }
       return;
     }
-    const fn = resolveDispatchTarget(this, method, NON_DISPATCHABLE_METHODS);
+    const fn = resolveDispatchTarget(
+      this,
+      method,
+      NON_DISPATCHABLE_VIEW_METHODS
+    );
     if (fn) {
       // Normalize null to undefined so handlers' destructuring defaults apply
       fn.call(this, params == null ? undefined : params);

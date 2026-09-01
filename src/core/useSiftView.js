@@ -5,6 +5,7 @@ import {
   isTrustedOrigin,
   resolveDispatchTarget,
   resolveMessagePolicy,
+  NON_DISPATCHABLE_VIEW_METHODS,
 } from '../lib/message-security';
 import { withHashedEmailSubject } from '../lib/oauth-options';
 
@@ -32,7 +33,7 @@ const useSiftView = (props = {}) => {
 
     const pluginContext = { notifyClient };
 
-    const getPlugin = ({ id }) => {
+    const getPlugin = ({ id } = {}) => {
       return (
         pluginManager
           .getActivePlugins()
@@ -159,7 +160,11 @@ const useSiftView = (props = {}) => {
         }
         return;
       }
-      const fn = resolveDispatchTarget(siftViewRef.current, method);
+      const fn = resolveDispatchTarget(
+        siftViewRef.current,
+        method,
+        NON_DISPATCHABLE_VIEW_METHODS
+      );
       if (fn) {
         // Normalize null to undefined so handlers' destructuring defaults apply
         fn(messageParams == null ? undefined : messageParams);

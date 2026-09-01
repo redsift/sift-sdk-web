@@ -8,11 +8,13 @@ export function originOf(url) {
   if (!url) {
     return null;
   }
+  let origin;
   try {
-    return new URL(url).origin;
+    origin = new URL(url).origin;
   } catch (error) {
     return null;
   }
+  return normalizeOrigin(origin);
 }
 
 /**
@@ -42,14 +44,22 @@ export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
   if (explicit.indexOf('*') !== -1) {
     return { trustedOrigins: null, targetOrigin: '*' };
   }
+  const referrerOrigin = originOf(win.document && win.document.referrer);
+
   if (explicit.length > 0) {
+    // Pin outbound messages to the origin actually embedding this view when
+    // it is one of the allowed ones: with several allowed clients, pinning to
+    // the first entry would have the browser silently drop every message
+    const target =
+      referrerOrigin && explicit.indexOf(referrerOrigin) !== -1
+        ? referrerOrigin
+        : explicit[0];
     return {
       trustedOrigins: withOwnOrigin(explicit, own),
-      targetOrigin: explicit[0],
+      targetOrigin: target,
     };
   }
 
-  const referrerOrigin = originOf(win.document && win.document.referrer);
   if (referrerOrigin) {
     return {
       trustedOrigins: withOwnOrigin([referrerOrigin], own),
@@ -75,6 +85,27 @@ export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
 export function isTrustedOrigin(trustedOrigins, origin) {
   return trustedOrigins === null || trustedOrigins.indexOf(origin) !== -1;
 }
+
+/**
+ * Methods on a sift view that an inbound message must never invoke, shared
+ * by the class and the hook so the two cannot drift apart:
+ *
+ *  - teardown and dispatch machinery, which a message could use to silence
+ *    or duplicate the channel;
+ *  - the raw outbound emitters, which no host sends inbound (the view posts
+ *    them), so a message must not make the view emit on its behalf.
+ *
+ * The user-facing helpers (`login`, `navigate`, ...) stay dispatchable: they
+ * only ever notify the client that sent the message, and some hosts may rely
+ * on driving them.
+ */
+export const NON_DISPATCHABLE_VIEW_METHODS = [
+  'destroy',
+  '_onWindowMessage',
+  '_registerMessageListeners',
+  'publish',
+  'notifyClient',
+];
 
 /**
  * Resolves an inbound message method name to a callable on `target`.
@@ -105,10 +136,19 @@ let warnedLegacyFallback = false;
 
 function ownOrigin(win) {
   try {
-    return (win.location && win.location.origin) || null;
+    return normalizeOrigin(win.location && win.location.origin);
   } catch (error) {
     return null;
   }
+}
+
+// Opaque origins — `file:`, `data:`, and documents in a sandbox without
+// `allow-same-origin` — all serialize to the literal string "null" while
+// *not* being same-origin with one another. Treating that as an origin would
+// trust every opaque context alike (and pins an unusable target origin), so
+// it is discarded and the caller falls back to the documented policy.
+function normalizeOrigin(origin) {
+  return origin && origin !== 'null' ? origin : null;
 }
 
 function withOwnOrigin(origins, own) {
