@@ -467,8 +467,8 @@ async function main() {
   // An in-frame navigation makes document.referrer point at the *previous
   // document in this frame*, i.e. our own origin — it says nothing about the
   // client. Pinning to it would reject every inbound client message and have
-  // the browser drop every outbound one, so it must be discarded as stale and
-  // the channel kept alive under the legacy policy.
+  // the browser drop every outbound one, so it is discarded as stale; with
+  // nothing else to resolve from, construction then fails closed.
   fakeWindow.document.referrer = 'https://dmarc.sift.example/previous-page';
   assert.throws(
     () => createSiftView({}),

@@ -62,7 +62,7 @@ export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
   // A sift that supplies `clientOrigin` is asking for a restriction. Dropping
   // an unparseable value and quietly discovering the origin instead would
   // defeat exactly what it configured, so fail loudly rather than fall
-  // through to discovery or the wildcard fallback.
+  // through to discovery.
   if (configured && explicit.length === 0) {
     throw new Error(
       '[SiftSdkWeb] `clientOrigin` was supplied but contained no valid origin: ' +
@@ -189,7 +189,8 @@ function ownOrigin(win) {
 // `allow-same-origin` — all serialize to the literal string "null" while
 // *not* being same-origin with one another. Treating that as an origin would
 // trust every opaque context alike (and pins an unusable target origin), so
-// it is discarded and the caller falls back to the documented policy.
+// it is discarded, returning null. With nothing else to resolve from, the
+// caller then fails closed.
 function normalizeOrigin(origin) {
   return origin && origin !== 'null' ? origin : null;
 }
@@ -204,9 +205,11 @@ function normalizeOrigin(origin) {
 // the previous document in this same frame. A referrer on our own origin
 // therefore says nothing about the client, and pinning to it would reject
 // every inbound client message while the browser silently dropped every
-// outbound one — a dead channel. It is discarded as stale so the caller falls
-// back to the documented legacy policy, which keeps the channel working.
-// Sifts that navigate in-frame should pass an explicit { clientOrigin }.
+// outbound one — a dead channel. It is discarded as stale, returning null.
+//
+// With nothing else to go on the caller then fails closed and throws, so a
+// sift that navigates in-frame has to pass an explicit { clientOrigin } (or
+// the '*' escape hatch); it is not carried by a fallback any more.
 function embeddingOrigin(win, own) {
   const ancestors = win.location && win.location.ancestorOrigins;
   if (ancestors && ancestors.length > 0) {
