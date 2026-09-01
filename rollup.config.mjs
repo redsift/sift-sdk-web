@@ -5,7 +5,9 @@ import resolve from '@rollup/plugin-node-resolve';
 // React is a peer dependency: it must never be bundled, or the hook would run
 // against a second copy of React whose dispatcher the host app never populates
 // (`useState` then throws) — and the peer declaration would be meaningless.
-const PEERS = ['react', 'react-dom'];
+// react-dom is deliberately absent: nothing in src/ imports it, so it is not a
+// peer either.
+const PEERS = ['react'];
 
 const PRESETS = [['@babel/preset-env']];
 
@@ -48,7 +50,7 @@ const umdBuild = (input, file, name) => ({
     file,
     format: 'umd',
     name,
-    globals: { react: 'React', 'react-dom': 'ReactDOM' },
+    globals: { react: 'React' },
     sourcemap: true,
     exports: 'named',
   },

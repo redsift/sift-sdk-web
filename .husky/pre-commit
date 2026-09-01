@@ -1,1 +1,5 @@
+# No shebang and no `. "$(dirname -- "$0")/_/husky.sh"` line on purpose: husky 9
+# generates the wrapper in .husky/_/ (git's core.hooksPath) and sources this
+# file from it. Husky 9 prints a DEPRECATED warning for that old two-line
+# header and says it will fail in v10.
 npx lint-staged
