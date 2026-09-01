@@ -67,6 +67,9 @@ export default class SyncHistory {
         console.warn('[SyncHistory::onNavigation] invalid location:', location);
         return;
       }
+      // NOTE: a missing action deliberately defaults to `push` — legacy
+      // clients may send a bare location, and the intent of a location-only
+      // message is unambiguous. Unknown non-empty actions are rejected below.
       const op = NAVIGATION_ACTIONS[String(action || 'push').toLowerCase()];
       if (!op) {
         console.warn(

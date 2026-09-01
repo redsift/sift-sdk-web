@@ -37,7 +37,7 @@ export default class PluginManager {
     });
   };
 
-  start = ({ pluginConfigs, contextType, context, global }) => {
+  start = ({ pluginConfigs, contextType, context, global } = {}) => {
     this._activePlugins.forEach(
       (activePlugin) =>
         activePlugin.start &&
@@ -45,7 +45,7 @@ export default class PluginManager {
     );
   };
 
-  stop = ({ pluginConfigs, contextType, context, global }) => {
+  stop = ({ pluginConfigs, contextType, context, global } = {}) => {
     this._activePlugins.forEach(
       (activePlugin) =>
         activePlugin.stop &&

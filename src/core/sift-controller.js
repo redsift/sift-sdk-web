@@ -17,6 +17,7 @@ const NON_DISPATCHABLE_HANDLERS = [
 export default class SiftController {
   constructor() {
     this._proxy = self;
+    this._warnedUnknownMethods = new Set();
     this.view = new Observable();
     this.emailclient = new EmailClient(self);
     this._registerMessageListeners();
@@ -78,8 +79,12 @@ export default class SiftController {
         ? null
         : this[handlerName];
       if (typeof handler === 'function') {
-        handler.call(this, data.params);
-      } else {
+        // Normalize null to undefined so handlers' destructuring defaults apply
+        handler.call(this, data.params == null ? undefined : data.params);
+      } else if (!this._warnedUnknownMethods.has(data.method)) {
+        // Warn once per method: an EmailClientController sharing this worker
+        // scope legitimately receives methods this controller does not know
+        this._warnedUnknownMethods.add(data.method);
         console.warn(
           '[SiftController:onmessage]: method not implemented: ',
           data.method

@@ -161,7 +161,8 @@ const useSiftView = (props = {}) => {
       }
       const fn = resolveDispatchTarget(siftViewRef.current, method);
       if (fn) {
-        fn(messageParams);
+        // Normalize null to undefined so handlers' destructuring defaults apply
+        fn(messageParams == null ? undefined : messageParams);
       } else {
         console.warn(`[SiftView]: method not implemented: ${method}`);
       }
@@ -169,8 +170,14 @@ const useSiftView = (props = {}) => {
     window.addEventListener('message', messageHandler, false);
     return () => {
       window.removeEventListener('message', messageHandler, false);
+      // Plugins hold global listeners (activity tracking, history sync):
+      // stop them too, or they outlive the unmounted view
+      pluginManager.stop({
+        contextType: 'view',
+        global: window,
+      });
     };
-  }, [controller, messagePolicy]);
+  }, [controller, pluginManager, messagePolicy]);
 
   return useMemo(() => [params, siftView], [params, siftView]);
 };

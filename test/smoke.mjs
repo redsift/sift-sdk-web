@@ -17,7 +17,15 @@ const fakeWindow = {
   // keep the bundled js-sha256 on its pure-JS path (no Node require())
   JS_SHA256_NO_NODE_JS: true,
   addEventListener: (type, fn) => windowListeners.push({ type, fn }),
-  removeEventListener: () => {},
+  // Really remove, so tests asserting a listener survives (or not) can fail
+  removeEventListener: (type, fn) => {
+    const index = windowListeners.findIndex(
+      (l) => l.type === type && l.fn === fn
+    );
+    if (index !== -1) {
+      windowListeners.splice(index, 1);
+    }
+  },
   location: { origin: 'https://dmarc.sift.example' },
   document: { referrer: 'https://app.redsift.com/home/abc' },
   parent: fakeParent,
@@ -116,10 +124,15 @@ async function main() {
     'destroy is not message-dispatchable'
   );
 
-  // ---- handlers tolerate missing params -------------------------------------
+  // ---- handlers tolerate missing or null params ------------------------------
   deliver('https://app.redsift.com', { method: '_initPlugins' }); // no params
+  deliver('https://app.redsift.com', { method: '_initPlugins', params: null });
   deliver('https://app.redsift.com', { method: '_receivePluginMessages' });
   deliver('https://app.redsift.com', { method: 'login' }); // destructuring must not throw
+  deliver('https://app.redsift.com', {
+    method: 'showOAuthPopup',
+    params: null,
+  });
 
   // ---- notifyView routes to controller observable --------------------------
   let received = null;
@@ -211,7 +224,15 @@ async function main() {
     'v5 listener shape flattened'
   );
 
-  // plugin message routed to a plugin without onMessage must not throw
+  // plugin message routed to an ACTIVE plugin without onMessage must not
+  // throw (track-ui-activity implements no onMessage); an unknown plugin id
+  // is skipped as before
+  view._initPlugins({ pluginConfigs: [{ id: 'track-ui-activity' }] });
+  assert.strictEqual(view._pluginManager.getActivePlugins().length, 2);
+  deliver('https://app.redsift.com', {
+    method: '_receivePluginMessages',
+    params: { messages: [{ id: 'track-ui-activity', data: {} }] },
+  });
   deliver('https://app.redsift.com', {
     method: '_receivePluginMessages',
     params: { messages: [{ id: 'unknown-plugin', data: {} }] },
@@ -230,6 +251,15 @@ async function main() {
     null,
     'stop unsubscribes the history listener'
   );
+
+  // a direct destroy() call (not via message) removes the message listener
+  view.destroy();
+  presented = null;
+  deliver('https://app.redsift.com', {
+    method: 'presentView',
+    params: { after: 'destroy' },
+  });
+  assert.strictEqual(presented, null, 'destroy removes the message listener');
 
   // ---- SiftController in a fake worker scope --------------------------------
   const workerPosts = [];
@@ -326,7 +356,9 @@ async function main() {
   );
   const postsBefore = workerPosts.length;
   workerDeliver({ method: 'loadView' }); // no params
+  workerDeliver({ method: 'loadView', params: null });
   workerDeliver({ method: 'init' }); // no params
+  workerDeliver({ method: 'initPlugins', params: null }); // null params: defaults apply
   workerDeliver({ method: 'triggerSiftViewInit', params: {} });
   workerDeliver({ method: 'triggerSiftViewFailed', params: {} });
   assert.strictEqual(

@@ -132,16 +132,22 @@ export default class SiftView {
     }
     const fn = resolveDispatchTarget(this, method, NON_DISPATCHABLE_METHODS);
     if (fn) {
-      fn.call(this, params);
+      // Normalize null to undefined so handlers' destructuring defaults apply
+      fn.call(this, params == null ? undefined : params);
     } else {
       console.warn('[SiftView]: method not implemented: ', method);
     }
   }
 
-  // Unregisters the window message listener, e.g. when tearing the view down
-  // in tests or single-page-app navigation.
+  // Tears the view down, e.g. in tests or single-page-app navigation:
+  // unregisters the window message listener and stops any active plugins
   destroy() {
     window.removeEventListener('message', this._messageHandler, false);
+    this._pluginManager.stop({
+      contextType: 'view',
+      context: this,
+      global: window,
+    });
   }
 
   // --------------------------------------------------------------------------

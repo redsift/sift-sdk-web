@@ -27,7 +27,8 @@ export default class EmailClientController {
         ? null
         : this[handlerName];
       if (typeof handler === 'function') {
-        handler.call(this, data.params);
+        // Normalize null to undefined so handlers' destructuring defaults apply
+        handler.call(this, data.params == null ? undefined : data.params);
       }
       // NOTE: unimplemented methods are silently ignored, the message may be
       // intended for another controller sharing the worker scope
