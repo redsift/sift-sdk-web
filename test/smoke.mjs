@@ -80,16 +80,26 @@ async function main() {
   });
   const oauth = last(sent).msg.params.value.options;
   assert.strictEqual(oauth.email, undefined, 'email replaced');
-  assert.ok(/^[0-9a-f]{16}$/.test(oauth.subject), 'subject is 16 hex chars');
   assert.strictEqual(oauth.scope, 's', 'other options preserved');
+  // A fixed vector, not just a shape check. The client may correlate `subject`
+  // across sessions, so the value is part of the contract: swapping the hash
+  // implementation, changing the input encoding, the hex casing or the
+  // truncation length would all keep /^[0-9a-f]{16}$/ satisfied while silently
+  // breaking that. sha256('a@b.co') begins 80305c9bb1bb2480.
+  assert.strictEqual(
+    oauth.subject,
+    '80305c9bb1bb2480',
+    "subject is the first 16 hex chars of sha256 of the email — if this fails, `subject` values changed and the client's correlation breaks"
+  );
 
   // a subject supplied next to the email must not override the derived hash
   view.showOAuthPopup({
     provider: 'google',
     options: { email: 'a@b.co', subject: 'supplied-not-derived' },
   });
-  assert.ok(
-    /^[0-9a-f]{16}$/.test(last(sent).msg.params.value.options.subject),
+  assert.strictEqual(
+    last(sent).msg.params.value.options.subject,
+    '80305c9bb1bb2480',
     'a supplied subject cannot overwrite the hashed email'
   );
 
