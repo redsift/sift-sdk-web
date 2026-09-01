@@ -13,6 +13,11 @@ const PEERS = ['react'];
 // Read from package.json rather than duplicated here: transform-runtime must
 // only emit helpers the declared runtime actually provides, and a hard-coded
 // copy would drift from the dependency it has to match.
+//
+// A semver *range* is the right thing to pass. transform-runtime normalises a
+// concrete version into `^version` and then compares with semver.intersects,
+// so `^7.29.7` and `7.29.7` gate helpers identically — coercing the range
+// would gain nothing and could only lose precision.
 const pkg = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8')
 );
