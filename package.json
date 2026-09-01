@@ -44,6 +44,13 @@
     "node": ">=18.18.0",
     "npm": ">=9.0.0"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^20.19.0 || ^22.13.0 || >=24",
+      "onFail": "warn"
+    }
+  },
   "dependencies": {
     "@babel/runtime": "^7.29.7",
     "@redsift/observable": "^4.0.5",

@@ -82,7 +82,10 @@ defined`.
   JSX, a class component or ReactDOM — none of which exist here. `react-hooks`
   stays; it supports eslint `^10` and is the plugin that has caught real bugs.
   `@eslint/js` is now an explicit devDependency rather than one relied on
-  transitively through eslint.
+  transitively through eslint. Eslint 10 needs a newer Node than this package
+  does, so that requirement is declared in `devEngines.runtime`; `engines`
+  still says Node 18.18, which is the consumer contract and unaffected by a
+  dev tool.
 - `npm audit` reports no vulnerabilities, down from 17 (1 critical, 9 high).
   The dev tree is 302 packages, down from 424.
 

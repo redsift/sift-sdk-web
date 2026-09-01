@@ -606,6 +606,12 @@ same implementation underneath, so they cannot disagree about any of it.
 
 ## Development
 
+Developing this package needs a newer Node than using it does: eslint 10
+requires `^20.19.0 || ^22.13.0 || >=24`, which `devEngines.runtime` declares so
+npm warns on a version that will not work. The `engines` floor stays at Node
+18.18 because that is the consumer contract — nothing in the published bundles
+needs more, and eslint is never installed by a consumer.
+
 ```sh
 npm ci
 npm run lint        # eslint (flat config)
