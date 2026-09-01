@@ -22,6 +22,12 @@ jobs:
       - run:
           name: Lint
           command: npm run lint
+      # The published type declarations are hand-written, so they can drift
+      # from the JS. test/types/ exercises the public surface, and this
+      # step is what makes that drift a build failure.
+      - run:
+          name: Typecheck
+          command: npm run typecheck
       - run:
           name: Build and run the smoke test
           command: npm test
