@@ -49,6 +49,11 @@
       "name": "node",
       "version": "^20.19.0 || ^22.13.0 || >=24",
       "onFail": "warn"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": ">=10.9.0",
+      "onFail": "warn"
     }
   },
   "dependencies": {
