@@ -35,9 +35,10 @@ globalThis.window = fakeWindow;
 globalThis.document = fakeWindow.document;
 globalThis.parent = fakeParent;
 
-const deliver = (origin, data) =>
+// `source` defaults to the embedding window, as a real client message has
+const deliver = (origin, data, source = fakeParent) =>
   windowListeners.forEach(
-    ({ type, fn }) => type === 'message' && fn({ origin, data })
+    ({ type, fn }) => type === 'message' && fn({ origin, data, source })
   );
 
 async function main() {
@@ -97,6 +98,34 @@ async function main() {
     presented,
     { ok: true },
     'trusted origin dispatches sift-defined method'
+  );
+
+  // ---- inbound source filtering --------------------------------------------
+  // A trusted origin is not enough: sibling frames and popups served from the
+  // client's own origin can hold this frame's WindowProxy and post to it
+  const rogueWindow = { postMessage: () => {} };
+  presented = null;
+  deliver(
+    'https://app.redsift.com',
+    { method: 'presentView', params: { rogue: true } },
+    rogueWindow
+  );
+  assert.strictEqual(
+    presented,
+    null,
+    'trusted origin from a non-embedding window is ignored'
+  );
+
+  // a sender with no source (closed window, some relays) still dispatches
+  deliver(
+    'https://app.redsift.com',
+    { method: 'presentView', params: { noSource: true } },
+    null
+  );
+  assert.deepStrictEqual(
+    presented,
+    { noSource: true },
+    'message without a source still dispatches'
   );
 
   // ---- malformed payloads don't throw --------------------------------------

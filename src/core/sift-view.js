@@ -2,6 +2,7 @@ import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
 import {
   isTrustedOrigin,
+  isTrustedSource,
   resolveDispatchTarget,
   resolveMessagePolicy,
   NON_DISPATCHABLE_VIEW_METHODS,
@@ -110,6 +111,9 @@ export default class SiftView {
 
   _onWindowMessage(e) {
     if (!isTrustedOrigin(this._trustedOrigins, e.origin)) {
+      return;
+    }
+    if (!isTrustedSource(this._proxy, e.source)) {
       return;
     }
     const data = e.data;

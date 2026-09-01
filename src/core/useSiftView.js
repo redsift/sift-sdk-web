@@ -3,6 +3,7 @@ import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
 import {
   isTrustedOrigin,
+  isTrustedSource,
   resolveDispatchTarget,
   resolveMessagePolicy,
   NON_DISPATCHABLE_VIEW_METHODS,
@@ -143,6 +144,9 @@ const useSiftView = (props = {}) => {
   useEffect(() => {
     const messageHandler = (e) => {
       if (!isTrustedOrigin(messagePolicy.trustedOrigins, e.origin)) {
+        return;
+      }
+      if (!isTrustedSource(proxy, e.source)) {
         return;
       }
       const data = e.data;

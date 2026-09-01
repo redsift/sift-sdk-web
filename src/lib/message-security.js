@@ -87,6 +87,26 @@ export function isTrustedOrigin(trustedOrigins, origin) {
 }
 
 /**
+ * Binds the protocol to the window that embeds this view. A trusted origin
+ * alone is not enough: sibling frames and popups served from the client's
+ * own origin can hold this frame's WindowProxy and post to it (this product
+ * opens OAuth popups on exactly that origin), so a message is only accepted
+ * from the embedding window — or from this window itself, whose origin is
+ * already trusted and whose code can reach the view directly anyway.
+ *
+ * `e.source` is absent for a sender that has since closed and for some relay
+ * arrangements; enforcing it only when the browser supplies one keeps hosts
+ * that legitimately relay working, while closing the vector for every live
+ * window. Tighten this to a strict equality check if no host relays.
+ */
+export function isTrustedSource(expectedSource, source, win = window) {
+  if (!source) {
+    return true;
+  }
+  return source === expectedSource || source === win;
+}
+
+/**
  * Methods on a sift view that an inbound message must never invoke, shared
  * by the class and the hook so the two cannot drift apart:
  *
