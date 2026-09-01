@@ -8,7 +8,9 @@ export function withHashedEmailSubject(options) {
   if (options && typeof options === 'object' && options.email) {
     const { email, ...others } = options;
     const subject = sha256(email).slice(0, 16);
-    return { subject, ...others };
+    // `others` is spread first so a subject supplied alongside the email
+    // cannot overwrite the derived one — replacing the address is the point
+    return { ...others, subject };
   }
   return options;
 }

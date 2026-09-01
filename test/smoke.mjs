@@ -83,6 +83,16 @@ async function main() {
   assert.ok(/^[0-9a-f]{16}$/.test(oauth.subject), 'subject is 16 hex chars');
   assert.strictEqual(oauth.scope, 's', 'other options preserved');
 
+  // a subject supplied next to the email must not override the derived hash
+  view.showOAuthPopup({
+    provider: 'google',
+    options: { email: 'a@b.co', subject: 'supplied-not-derived' },
+  });
+  assert.ok(
+    /^[0-9a-f]{16}$/.test(last(sent).msg.params.value.options.subject),
+    'a supplied subject cannot overwrite the hashed email'
+  );
+
   // ---- inbound origin filtering --------------------------------------------
   deliver('https://evil.example', {
     method: 'presentView',
@@ -385,6 +395,26 @@ async function main() {
   ancestorView.destroy();
   delete fakeWindow.location.ancestorOrigins;
   fakeWindow.document.referrer = 'https://app.redsift.com/home/abc';
+
+  // A clientOrigin that yields no valid origin is a configuration error: the
+  // sift asked for a restriction and must not silently get discovery instead
+  assert.throws(
+    () => createSiftView({}, { clientOrigin: 'htps://typo.example' }),
+    /clientOrigin/,
+    'an unparseable clientOrigin throws instead of falling back'
+  );
+
+  // ...but valid entries alongside an invalid one are still honoured
+  const partialView = createSiftView(
+    {},
+    { clientOrigin: ['htps://typo.example', 'https://app.redsift.com'] }
+  );
+  assert.strictEqual(
+    partialView._targetOrigin,
+    'https://app.redsift.com',
+    'valid clientOrigin entries survive an invalid one'
+  );
+  partialView.destroy();
 
   // With several allowed client origins, outbound must be pinned to the one
   // actually embedding this view — not blindly to the first entry, which the

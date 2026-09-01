@@ -23,6 +23,8 @@ export function originOf(url) {
  *
  *  1. An explicit `clientOrigin` (string or array of strings) configured by
  *     the sift. Pass `'*'` to explicitly restore the legacy behaviour.
+ *     Supplying a value that yields no valid origin throws: a sift asking
+ *     for a restriction must not silently get discovery instead.
  *  2. For an embedded view, the origin of the window embedding it — see
  *     `embeddingOrigin` for how that is established and why the referrer
  *     alone is not enough.
@@ -36,10 +38,29 @@ export function originOf(url) {
  */
 export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
   const own = ownOrigin(win);
-  const explicit = []
-    .concat(clientOrigin || [])
-    .map((origin) => (origin === '*' ? '*' : originOf(origin)))
-    .filter(Boolean);
+  const supplied = [].concat(clientOrigin || []);
+  const explicit = [];
+  supplied.forEach((origin) => {
+    const normalized = origin === '*' ? '*' : originOf(origin);
+    if (normalized) {
+      explicit.push(normalized);
+    } else {
+      console.error(
+        '[SiftSdkWeb] Ignoring an invalid `clientOrigin` entry:',
+        origin
+      );
+    }
+  });
+  // A sift that supplies `clientOrigin` is asking for a restriction. Dropping
+  // an unparseable value and quietly discovering the origin instead would
+  // defeat exactly what it configured, so fail loudly rather than fall
+  // through to discovery or the wildcard fallback.
+  if (supplied.length > 0 && explicit.length === 0) {
+    throw new Error(
+      '[SiftSdkWeb] `clientOrigin` was supplied but contained no valid origin: ' +
+        JSON.stringify(supplied)
+    );
+  }
 
   if (explicit.indexOf('*') !== -1) {
     return { trustedOrigins: null, targetOrigin: '*' };
