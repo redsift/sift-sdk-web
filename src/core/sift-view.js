@@ -1,216 +1,134 @@
 import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
+import { resolveMessagePolicy } from '../lib/message-security';
 import {
-  isTrustedOrigin,
-  isTrustedSource,
-  resolveDispatchTarget,
-  resolveMessagePolicy,
-  NON_DISPATCHABLE_VIEW_METHODS,
-} from '../lib/message-security';
-import { withHashedEmailSubject } from '../lib/oauth-options';
+  createClientActions,
+  createMessageDispatcher,
+  createOutbound,
+  createPluginSurface,
+} from '../lib/view-core';
 
+/**
+ * A sift's view, as a class. `useSiftView` is the same protocol as a hook;
+ * both are thin wiring over ../lib/view-core, which holds the logic they must
+ * agree on.
+ *
+ * The members below stay split between own properties and prototype methods
+ * exactly as they were, so a sift that overrides one of them from
+ * `createSiftView({ ... })` still shadows it.
+ */
 export default class SiftView {
   constructor({ clientOrigin } = {}) {
     this._resizeHandler = null;
     this._proxy = parent;
-    const { trustedOrigins, targetOrigin } = resolveMessagePolicy({
-      clientOrigin,
-    });
-    this._trustedOrigins = trustedOrigins;
-    this._targetOrigin = targetOrigin;
-    this._messageHandler = this._onWindowMessage.bind(this);
+    // Throws when no origin can be resolved: see resolveMessagePolicy
+    const policy = resolveMessagePolicy({ clientOrigin });
+    this._trustedOrigins = policy.trustedOrigins;
+    this._targetOrigin = policy.targetOrigin;
     this.controller = new Observable();
-    this._registerMessageListeners();
     this._pluginManager = new PluginManager();
+
+    const outbound = createOutbound({
+      proxy: this._proxy,
+      targetOrigin: policy.targetOrigin,
+    });
+    // Late-bound on purpose. A sift's methods go on the prototype, so
+    // `createSiftView({ notifyClient })` shadows the SDK's — and everything
+    // that sends on the view's behalf has to reach it through the instance to
+    // see that. Capturing `outbound.notifyClient` here instead would leave an
+    // override intercepting direct calls only, silently missing `login`,
+    // `navigate`, the OAuth helpers and anything a plugin sends.
+    const notifyClient = (topic, value) => this.notifyClient(topic, value);
+    const plugins = createPluginSurface({
+      pluginManager: this._pluginManager,
+      notifyClient,
+      global: window,
+    });
+    this._core = {
+      ...outbound,
+      ...plugins,
+      ...createClientActions({
+        notifyClient,
+        getPlugin: (request) => this.getPlugin(request),
+      }),
+    };
+
+    // Own properties, as before: the plugin lifecycle the client drives, and
+    // the plugin lookup a sift calls
+    this._initPlugins = plugins._initPlugins;
+    this._startPlugins = plugins._startPlugins;
+    this._stopPlugins = plugins._stopPlugins;
+    this.getPlugin = plugins.getPlugin;
+
+    this._messageHandler = createMessageDispatcher({
+      policy,
+      proxy: this._proxy,
+      controller: this.controller,
+      getTarget: () => this,
+    });
+    this._registerMessageListeners();
   }
 
   // --------------------------------------------------------------------------
   // Plugin management
   // --------------------------------------------------------------------------
 
-  _initPlugins = ({ pluginConfigs } = {}) => {
-    this._pluginManager.init({
-      pluginConfigs,
-      contextType: 'view',
-      context: this,
-      global: window,
-    });
-  };
-
-  _startPlugins = ({ pluginConfigs } = {}) => {
-    this._pluginManager.start({
-      pluginConfigs,
-      contextType: 'view',
-      context: this,
-      global: window,
-    });
-  };
-
-  _stopPlugins = ({ pluginConfigs } = {}) => {
-    this._pluginManager.stop({
-      pluginConfigs,
-      contextType: 'view',
-      context: this,
-      global: window,
-    });
-  };
-
   _receivePluginMessages(params) {
-    const messages = params && params.messages;
-    if (!Array.isArray(messages)) {
-      console.warn(
-        '[SiftView::_receivePluginMessages]: expected an array of messages'
-      );
-      return;
-    }
-    this._pluginManager.onMessages({ messages });
+    return this._core._receivePluginMessages(params);
   }
-
-  getPlugin = ({ id } = {}) => {
-    return (
-      this._pluginManager
-        .getActivePlugins()
-        // NOTE: see https://stackoverflow.com/questions/28627908/call-static-methods-from-regular-es6-class-methods
-        .find((plugin) => plugin.constructor.id() === id)
-    );
-  };
 
   // --------------------------------------------------------------------------
   // Pub/sub management
   // --------------------------------------------------------------------------
 
   publish(topic, value) {
-    this._proxy.postMessage(
-      {
-        method: 'notifyController',
-        params: {
-          topic: topic,
-          value: value,
-        },
-      },
-      this._targetOrigin
-    );
+    return this._core.publish(topic, value);
   }
 
   notifyClient(topic, value) {
-    this._proxy.postMessage(
-      {
-        method: 'notifyClient',
-        params: {
-          topic: topic,
-          value: value,
-        },
-      },
-      this._targetOrigin
-    );
+    return this._core.notifyClient(topic, value);
   }
 
   _registerMessageListeners() {
     window.addEventListener('message', this._messageHandler, false);
   }
 
-  _onWindowMessage(e) {
-    if (!isTrustedOrigin(this._trustedOrigins, e.origin)) {
-      return;
-    }
-    if (!isTrustedSource(this._proxy, e.source)) {
-      return;
-    }
-    const data = e.data;
-    if (!data || typeof data !== 'object' || typeof data.method !== 'string') {
-      return;
-    }
-    const { method, params } = data;
-    if (method === 'notifyView') {
-      if (params && typeof params === 'object') {
-        this.controller.publish(params.topic, params.value);
-      }
-      return;
-    }
-    const fn = resolveDispatchTarget(
-      this,
-      method,
-      NON_DISPATCHABLE_VIEW_METHODS
-    );
-    if (fn) {
-      // Normalize null to undefined so handlers' destructuring defaults apply
-      fn.call(this, params == null ? undefined : params);
-    } else {
-      console.warn('[SiftView]: method not implemented: ', method);
-    }
-  }
-
   // Tears the view down, e.g. in tests or single-page-app navigation:
   // unregisters the window message listener and stops any active plugins
   destroy() {
     window.removeEventListener('message', this._messageHandler, false);
-    this._pluginManager.stop({
-      contextType: 'view',
-      context: this,
-      global: window,
-    });
+    this._core.stopPlugins();
   }
 
   // --------------------------------------------------------------------------
   // Message channel to Cloud
   // --------------------------------------------------------------------------
 
-  showOAuthPopup({ provider, options = null } = {}) {
-    const topic = 'showOAuthPopup';
-    const value = { provider, options: withHashedEmailSubject(options) };
-    this.notifyClient(topic, value);
+  showOAuthPopup(request) {
+    return this._core.showOAuthPopup(request);
   }
 
-  removeOAuthIdentity({ provider, options = null } = {}) {
-    const topic = 'showOAuthRemovePopup';
-    const value = { provider, options };
-
-    this.notifyClient(topic, value);
+  removeOAuthIdentity(request) {
+    return this._core.removeOAuthIdentity(request);
   }
 
   signup() {
-    const topic = 'signup';
-    const value = {};
-
-    this.notifyClient(topic, value);
+    return this._core.signup();
   }
 
-  login({ redirectUri } = {}) {
-    const topic = 'login';
-    const value = { redirectUri };
-
-    this.notifyClient(topic, value);
+  login(request) {
+    return this._core.login(request);
   }
 
   logout() {
-    const topic = 'logout';
-    const value = {};
-
-    this.notifyClient(topic, value);
+    return this._core.logout();
   }
 
-  navigate({ href, openInNewTab = false } = {}) {
-    const topic = 'navigate';
-    const value = { href, openInNewTab };
-
-    this.notifyClient(topic, value);
+  navigate(request) {
+    return this._core.navigate(request);
   }
 
-  setupSyncHistory({ history, initialPath } = {}) {
-    if (!history) {
-      console.error(
-        '[SiftSdkWeb] `setupSyncHistory` requires a history object'
-      );
-      return;
-    }
-    const syncHistoryPlugin = this.getPlugin({ id: 'sync-history' });
-
-    if (syncHistoryPlugin) {
-      syncHistoryPlugin.setup({ history, initialPath });
-    } else {
-      console.error(
-        '[SiftSdkWeb] To use `syncHistory` please enable the plugin first!'
-      );
-    }
+  setupSyncHistory(request) {
+    return this._core.setupSyncHistory(request);
   }
 }

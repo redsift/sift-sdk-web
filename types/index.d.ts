@@ -30,12 +30,14 @@ export interface SiftViewOptions {
    * only to it and inbound messages are accepted only from it.
    *
    * Omit it and the SDK works the origin out itself — `location.ancestorOrigins`
-   * where available, else `document.referrer` — falling back to the legacy
-   * accept-any behaviour with a warning when neither is usable. Pass it
-   * explicitly if the view ever navigates in-frame, since a referrer goes
-   * stale after that. Pass `'*'` to opt back into the legacy behaviour.
+   * where available, else `document.referrer`. When neither is usable the
+   * constructor **throws**: an unresolvable client origin is a broken
+   * deployment, and running unpinned would look fine while every message was
+   * readable by any embedder. Pass it explicitly if the view ever navigates
+   * in-frame, since a referrer goes stale after that, or pass `'*'` to accept
+   * the unpinned behaviour.
    *
-   * A value that yields no valid origin throws, rather than silently
+   * A value that yields no valid origin also throws, rather than silently
    * downgrading to discovery.
    */
   clientOrigin?: string | string[];
@@ -83,6 +85,7 @@ export interface SetupSyncHistoryRequest {
  * and implement the lifecycle hooks the client calls.
  */
 export class SiftView {
+  /** @throws if no client origin can be resolved — see {@link SiftViewOptions.clientOrigin} */
   constructor(options?: SiftViewOptions);
 
   /** Messages the controller published to this view. */
@@ -147,8 +150,14 @@ export class SiftStorage implements Observable {
   putUser(query: unknown): Promise<unknown>;
   delUser(query: unknown): Promise<unknown>;
   /** Subscribe to `'*'` for every bucket, or to a bucket name. */
-  subscribe(topic: string | string[], observer: (message: unknown) => void): void;
-  unsubscribe(topic: string | string[], observer: (message: unknown) => void): void;
+  subscribe(
+    topic: string | string[],
+    observer: (message: unknown) => void
+  ): void;
+  unsubscribe(
+    topic: string | string[],
+    observer: (message: unknown) => void
+  ): void;
   unsubscribeAll(topic: string): void;
   publish(topic: string | string[], message?: unknown): void;
 }
