@@ -1,6 +1,6 @@
 // Smoke test for the built SDK bundle, run in Node with faked browser globals.
-// Written for Node >= 12.17 (the engines minimum with unflagged ESM support).
 import assert from 'assert';
+import { readFileSync } from 'fs';
 
 const sent = []; // messages posted to the (fake) parent window
 const windowListeners = [];
@@ -42,7 +42,7 @@ const deliver = (origin, data, source = fakeParent) =>
   );
 
 async function main() {
-  const sdk = await import('../dist/sift-sdk-web.esm.mjs');
+  const sdk = await import('../dist/sift-sdk-web.mjs');
   const { createSiftView, createSiftController, SiftView } = sdk;
 
   // ---- view construction + message policy ---------------------------------
@@ -695,6 +695,20 @@ async function main() {
     params: {},
   });
 
+  // ---- the React entry must never bundle React ------------------------------
+  // A bundled second copy means useSiftView's hooks run against a dispatcher
+  // the host app never populates. Published 2.0.3 did exactly that and threw
+  // "Cannot read properties of null (reading 'useState')" on first use.
+  const REACT_IMPL = /__SECRET_INTERNALS|ReactCurrentDispatcher/;
+  const reactEsm = readFileSync(
+    new URL('../dist/react.mjs', import.meta.url),
+    'utf8'
+  );
+  assert.ok(
+    /from ['"]react['"]/.test(reactEsm),
+    'the React build imports react instead of bundling it'
+  );
+  assert.ok(!REACT_IMPL.test(reactEsm), 'no React implementation is bundled');
   console.log('All smoke tests passed.');
 }
 

@@ -11,7 +11,7 @@ export function originOf(url) {
   let origin;
   try {
     origin = new URL(url).origin;
-  } catch (error) {
+  } catch {
     return null;
   }
   return normalizeOrigin(origin);
@@ -181,7 +181,7 @@ let warnedLegacyFallback = false;
 function ownOrigin(win) {
   try {
     return normalizeOrigin(win.location && win.location.origin);
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -236,7 +236,7 @@ function withOwnOrigin(origins, own) {
 function isEmbedded(win) {
   try {
     return win.parent !== win;
-  } catch (error) {
+  } catch {
     return true;
   }
 }

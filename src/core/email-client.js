@@ -19,9 +19,8 @@ export default class EmailClient extends Observable {
       method: 'notifyClient',
       params: {
         topic: topic,
-        value: value
-      }
+        value: value,
+      },
     });
   }
-
 }
