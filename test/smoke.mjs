@@ -349,6 +349,43 @@ async function main() {
   opaqueView.destroy();
   fakeWindow.document.referrer = 'https://app.redsift.com/home/abc';
 
+  // An in-frame navigation makes document.referrer point at the *previous
+  // document in this frame*, i.e. our own origin — it says nothing about the
+  // client. Pinning to it would reject every inbound client message and have
+  // the browser drop every outbound one, so it must be discarded as stale and
+  // the channel kept alive under the legacy policy.
+  fakeWindow.document.referrer = 'https://dmarc.sift.example/previous-page';
+  const staleReferrerView = createSiftView({});
+  assert.strictEqual(
+    staleReferrerView._trustedOrigins,
+    null,
+    'a self-referrer from an in-frame navigation is not mistaken for the client'
+  );
+  assert.strictEqual(
+    staleReferrerView._targetOrigin,
+    '*',
+    'stale referrer falls back to the legacy policy instead of a dead channel'
+  );
+  staleReferrerView.destroy();
+
+  // Where location.ancestorOrigins exists (Chromium, WebKit) it is
+  // authoritative and survives that same in-frame navigation
+  fakeWindow.location.ancestorOrigins = ['https://app.redsift.com'];
+  const ancestorView = createSiftView({});
+  assert.strictEqual(
+    ancestorView._targetOrigin,
+    'https://app.redsift.com',
+    'ancestorOrigins identifies the client despite a stale referrer'
+  );
+  assert.deepStrictEqual(
+    ancestorView._trustedOrigins.slice().sort(),
+    ['https://app.redsift.com', 'https://dmarc.sift.example'],
+    'ancestorOrigins client plus own origin are trusted'
+  );
+  ancestorView.destroy();
+  delete fakeWindow.location.ancestorOrigins;
+  fakeWindow.document.referrer = 'https://app.redsift.com/home/abc';
+
   // With several allowed client origins, outbound must be pinned to the one
   // actually embedding this view — not blindly to the first entry, which the
   // browser would silently drop

@@ -23,14 +23,14 @@ export function originOf(url) {
  *
  *  1. An explicit `clientOrigin` (string or array of strings) configured by
  *     the sift. Pass `'*'` to explicitly restore the legacy behaviour.
- *  2. The origin of `document.referrer` — for an embedded view this is the
- *     page that created the iframe, i.e. the client.
+ *  2. For an embedded view, the origin of the window embedding it — see
+ *     `embeddingOrigin` for how that is established and why the referrer
+ *     alone is not enough.
  *  3. The page's own origin when it is not embedded (development, tests).
  *
- * When none of these are available (embedded, but the client stripped the
- * referrer and no explicit origin was configured) the legacy behaviour is
- * kept — accept and post to any origin — with a warning, so existing
- * deployments keep working.
+ * When none of these can be established the legacy behaviour is kept —
+ * accept and post to any origin — with a warning, so existing deployments
+ * keep working rather than losing the channel.
  *
  * `trustedOrigins === null` means "accept any origin".
  */
@@ -44,37 +44,34 @@ export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
   if (explicit.indexOf('*') !== -1) {
     return { trustedOrigins: null, targetOrigin: '*' };
   }
-  const referrerOrigin = originOf(win.document && win.document.referrer);
+
+  // The origin of the window this view talks to: the embedding client when
+  // embedded, otherwise this page itself
+  const client = isEmbedded(win) ? embeddingOrigin(win, own) : own;
 
   if (explicit.length > 0) {
     // Pin outbound messages to the origin actually embedding this view when
     // it is one of the allowed ones: with several allowed clients, pinning to
     // the first entry would have the browser silently drop every message
     const target =
-      referrerOrigin && explicit.indexOf(referrerOrigin) !== -1
-        ? referrerOrigin
-        : explicit[0];
+      client && explicit.indexOf(client) !== -1 ? client : explicit[0];
     return {
       trustedOrigins: withOwnOrigin(explicit, own),
       targetOrigin: target,
     };
   }
 
-  if (referrerOrigin) {
+  if (client) {
     return {
-      trustedOrigins: withOwnOrigin([referrerOrigin], own),
-      targetOrigin: referrerOrigin,
+      trustedOrigins: withOwnOrigin([client], own),
+      targetOrigin: client,
     };
-  }
-
-  if (!isEmbedded(win) && own) {
-    return { trustedOrigins: [own], targetOrigin: own };
   }
 
   if (!warnedLegacyFallback) {
     warnedLegacyFallback = true;
     console.warn(
-      '[SiftSdkWeb] Could not determine the client origin (no clientOrigin option and no document.referrer). ' +
+      '[SiftSdkWeb] Could not determine the client origin (no clientOrigin option, no location.ancestorOrigins, and no usable document.referrer). ' +
         'Falling back to the legacy behaviour of accepting and posting messages to any origin; ' +
         'pass { clientOrigin } to lock this down.'
     );
@@ -172,6 +169,34 @@ function ownOrigin(win) {
 // it is discarded and the caller falls back to the documented policy.
 function normalizeOrigin(origin) {
   return origin && origin !== 'null' ? origin : null;
+}
+
+// The origin of the window embedding this view.
+//
+// `location.ancestorOrigins` is authoritative where implemented (Chromium and
+// WebKit) and, unlike the referrer, survives navigation inside the frame.
+//
+// `document.referrer` identifies the embedding page only for the frame's
+// *initial* navigation: once the view navigates itself, the referrer becomes
+// the previous document in this same frame. A referrer on our own origin
+// therefore says nothing about the client, and pinning to it would reject
+// every inbound client message while the browser silently dropped every
+// outbound one — a dead channel. It is discarded as stale so the caller falls
+// back to the documented legacy policy, which keeps the channel working.
+// Sifts that navigate in-frame should pass an explicit { clientOrigin }.
+function embeddingOrigin(win, own) {
+  const ancestors = win.location && win.location.ancestorOrigins;
+  if (ancestors && ancestors.length > 0) {
+    const fromAncestors = normalizeOrigin(ancestors[0]);
+    if (fromAncestors) {
+      return fromAncestors;
+    }
+  }
+  const referrerOrigin = originOf(win.document && win.document.referrer);
+  if (!referrerOrigin || referrerOrigin === own) {
+    return null;
+  }
+  return referrerOrigin;
 }
 
 function withOwnOrigin(origins, own) {
