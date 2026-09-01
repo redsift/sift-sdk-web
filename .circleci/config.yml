@@ -1,27 +1,71 @@
-version: 2
+version: 2.1
+
+# Node 22 LTS, pinned. The previous `quay.io/redsift/nodeos:latest` could
+# change the Node version under CI without a commit to this repo.
+executors:
+  node:
+    docker:
+      - image: cimg/node:22.23.2
 
 jobs:
   build:
-    shell: /bin/bash
-    docker:
-      - image: quay.io/redsift/nodeos:latest
+    executor: node
     steps:
       - checkout
-      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      - run: npm i
-      - run: npm test
+      # `npm ci` installs exactly what package-lock.json pins and fails if the
+      # lockfile is out of sync, unlike `npm i`. No npm token is needed: every
+      # dependency of this package is public, so the publish credential is
+      # scoped to the publish job alone.
       - run:
-          command: |
-            b=(${CIRCLE_BRANCH/-/ })
-            if [ $b == "release" ]; then
-              echo "Publishing to NPM"
-              npm publish --access=public
-            fi
+          name: Install dependencies
+          command: npm ci
+      - run:
+          name: Lint
+          command: npm run lint
+      - run:
+          name: Build and run the smoke test
+          command: npm test
 
+  publish:
+    executor: node
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: npm ci
+      - run:
+          name: Verify the tag matches the package version
+          command: |
+            PKG_VERSION="$(node -p 'require("./package.json").version')"
+            if [ "v${PKG_VERSION}" != "${CIRCLE_TAG}" ]; then
+              echo "Tag ${CIRCLE_TAG} does not match package.json version ${PKG_VERSION}"
+              exit 1
+            fi
+      - run:
+          name: Publish to npm
+          command: |
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+            npm publish --access=public
 
 workflows:
-  version: 2
-  build-and-deploy:
+  build-and-publish:
     jobs:
+      # Tags need an explicit filter on every job in the workflow, or a tag
+      # build skips them entirely.
       - build:
+          filters:
+            tags:
+              only: /^v.*/
+      # Publishing is driven by a version tag, not by a branch name. The
+      # previous config split $CIRCLE_BRANCH on "-" and published from any
+      # branch whose first segment was "release", so `release-experiment`
+      # would have gone to npm.
+      - publish:
+          requires:
+            - build
           context: org-global
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+$/
+            branches:
+              ignore: /.*/

@@ -20,9 +20,11 @@ const useSiftView = (props = {}) => {
   );
   const [params, setParams] = useState(null);
 
-  // Keep the latest consumer callback without re-registering listeners
+  // Keep the latest consumer callback reachable from the listener without
+  // re-registering it. The ref is written in an effect below rather than
+  // during render: a render-phase ref write is impure and misbehaves under
+  // concurrent rendering.
   const willPresentViewRef = useRef(willPresentView);
-  willPresentViewRef.current = willPresentView;
 
   const siftView = useMemo(() => {
     const notifyClient = (topic, value = {}) => {
@@ -139,7 +141,12 @@ const useSiftView = (props = {}) => {
   }, [proxy, controller, pluginManager, messagePolicy]);
 
   const siftViewRef = useRef(siftView);
-  siftViewRef.current = siftView;
+
+  // Publish the latest values for the listener after each commit
+  useEffect(() => {
+    willPresentViewRef.current = willPresentView;
+    siftViewRef.current = siftView;
+  });
 
   useEffect(() => {
     const messageHandler = (e) => {
@@ -186,7 +193,7 @@ const useSiftView = (props = {}) => {
         global: window,
       });
     };
-  }, [controller, pluginManager, messagePolicy]);
+  }, [controller, pluginManager, messagePolicy, proxy]);
 
   return useMemo(() => [params, siftView], [params, siftView]);
 };
