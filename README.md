@@ -83,15 +83,23 @@ createSiftController({
   // a promise: the SDK sends the HTML immediately and the data when it
   // resolves, so the view can render its shell while the query runs.
   loadView: function ({ type, sizeClass, params }) {
-    // `this.storage` is created when the client's `init` message is handled,
-    // so `loadView` is the earliest place it can be used. Note that a method
-    // named `init` on this object runs at *construction*, before that.
-    this.storage.subscribe('*', (buckets) => {
-      this.publish('data-changed', { buckets });
-    });
+    // One-time setup, guarded: `loadView` can be called more than once in a
+    // worker's lifetime (a host re-sends it when the view's size class or
+    // type changes), and each call would otherwise add another subscriber.
+    //
+    // It is still the earliest place this can go: `this.storage` is created
+    // when the client's `init` message is handled, whereas a method named
+    // `init` on this object runs at *construction*, before that.
+    if (!this._subscribed) {
+      this._subscribed = true;
 
-    // Messages the view published with `publish`.
-    this.view.subscribe('refresh', () => this.publish('data-changed', {}));
+      this.storage.subscribe('*', (buckets) => {
+        this.publish('data-changed', { buckets });
+      });
+
+      // Messages the view published with `publish`.
+      this.view.subscribe('refresh', () => this.publish('data-changed', {}));
+    }
 
     return {
       html: 'index.html',
@@ -193,14 +201,23 @@ After that the channel is bidirectional and event-driven: the view publishes to
 the controller and notifies the client, the controller publishes to the view,
 and the client pushes storage updates and plugin messages in.
 
-If `loadView` fails at step 2, the client receives `loadViewFailedCallback`
-instead of `loadViewCallback` and no view is loaded.
+If `loadView` fails at step 2 the client receives `loadViewFailedCallback`,
+but whether a view was already loaded depends on how it failed. A throw, a
+return that is not an object, or a rejecting `data` promise with no `html`
+means no `loadViewCallback` was ever sent, so no view is loaded. When `html`
+accompanies a `data` promise, though, the HTML goes out as soon as `loadView`
+returns — so the client may already have loaded the view by the time the
+rejection arrives, leaving it showing its shell with no data. Do not assume
+failure precedes view creation.
 
 ## Protocol reference
 
-Every message is a structured-clonable object of the shape
-`{ method, params }`. The tables below list the complete set the SDK handles or
-sends; a sift never needs to construct one by hand.
+Every message is a structured-clonable object with a `method` naming the
+operation. Most also carry a `params`, but that is a convention rather than a
+guarantee — `initCallback` puts its payload in `result` — so the tables below
+name each message's payload field rather than promising one shape. They list
+the complete set the SDK handles or sends; a sift never needs to construct one
+by hand.
 
 ### Client → controller
 
@@ -208,17 +225,22 @@ Dispatch rule: an inbound method `x` is handled by the controller's `_x`.
 Unknown methods are warned about once each (another controller may share the
 worker scope).
 
-| `method`           | `params`                              | Effect                                                                   |
-| ------------------ | ------------------------------------- | ------------------------------------------------------------------------ |
-| `init`             | `{ accountGuid, siftGuid, dbSchema }` | Creates `this.storage`; replies `initCallback`.                          |
-| `initPlugins`      | `{ pluginConfigs }`                   | Initialises plugins whose contexts include `controller`.                 |
-| `startPlugins`     | `{ pluginConfigs }`                   | Starts them.                                                             |
-| `stopPlugins`      | `{ pluginConfigs }`                   | Stops them and clears the active set.                                    |
-| `loadView`         | `{ client, type, sizeClass, data }`   | Calls your `loadView({ type, sizeClass, params: data })`.                |
-| `storageUpdated`   | `string[]` of bucket names            | Publishes `'*'` with the array on `this.storage`, then each bucket name. |
-| `notifyController` | `{ topic, value }`                    | Publishes `topic` on `this.view`.                                        |
-| `emailComposer`    | `{ topic, value }`                    | Publishes `topic` on `this.emailclient`.                                 |
-| `terminate`        | —                                     | `self.close()`.                                                          |
+| `method`           | `params`                              | Effect                                                                                           |
+| ------------------ | ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `init`             | `{ accountGuid, siftGuid, dbSchema }` | Creates `this.storage`; replies `initCallback`.                                                  |
+| `initPlugins`      | `{ pluginConfigs }`                   | Initialises plugins whose contexts include `controller`.                                         |
+| `startPlugins`     | `{ pluginConfigs }`                   | Starts them.                                                                                     |
+| `stopPlugins`      | `{ pluginConfigs }`                   | Stops them and clears the active set.                                                            |
+| `loadView`         | `{ client, type, sizeClass, data }`   | Calls your `loadView({ type, sizeClass, params: data })`. May arrive more than once — see below. |
+| `storageUpdated`   | `string[]` of bucket names            | Publishes `'*'` with the array on `this.storage`, then each bucket name.                         |
+| `notifyController` | `{ topic, value }`                    | Publishes `topic` on `this.view`.                                                                |
+| `emailComposer`    | `{ topic, value }`                    | Publishes `topic` on `this.emailclient`.                                                         |
+| `terminate`        | —                                     | `self.close()`.                                                                                  |
+
+`loadView` is not once-per-worker: the legacy `iframe-controller` host sends it
+again whenever the size class or view type changes, and the SDK relays each one
+straight to your `loadView`. Guard anything in there that must happen only once
+— subscriptions especially, since nothing de-duplicates a fresh closure.
 
 `EmailClientController` handles two more: `emailStats` (`{ name, value }` →
 your `onstats`) and `getThreadRowDisplayInfo` (`{ tris, supportedTemplates }` →
