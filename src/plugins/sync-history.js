@@ -1,3 +1,12 @@
+// Maps a navigation action from the client onto a history method. A POP
+// (back/forward already performed by the client) is mirrored with `replace`
+// so it does not create a new history entry inside the view.
+const NAVIGATION_ACTIONS = {
+  push: 'push',
+  replace: 'replace',
+  pop: 'replace',
+};
+
 export default class SyncHistory {
   static id = () => 'sync-history';
   static contexts = () => ['view'];
@@ -6,9 +15,7 @@ export default class SyncHistory {
   _view = null;
   _cloudNavigationInProgress = false;
 
-  init = ({ pluginConfigs, contextType, context, global }) => {
-    console.log('[SyncHistory::init()] called | contextType:', contextType);
-
+  init = ({ context }) => {
     this._view = context;
 
     // NOTE: return true to start the plugin:
@@ -16,30 +23,40 @@ export default class SyncHistory {
   };
 
   setup({ history, initialPath = null }) {
-    // NOTE: react-router v3 sends the `action` as part of the `navigationOp`, react-router v4 sends it as a separate parameter:
+    // NOTE: react-router v3 sends the `action` as part of the `navigationOp`,
+    // react-router v4 sends it as a separate parameter and the history v5
+    // package bundles both as `{ location, action }`:
     history.listen((navigationOp, action = null) => {
-      // console.log('[SyncHistory] history change event:', JSON.stringify(navigationOp));
-
       // NOTE: prevent recursion when the back/next button is pressed in Cloud:
-      if (!this._cloudNavigationInProgress) {
-        if (!navigationOp.action) {
-          navigationOp.action = action;
-        }
-
-        this.navigate(navigationOp);
-      } else {
+      if (this._cloudNavigationInProgress) {
         this._cloudNavigationInProgress = false;
-        // console.log('[SyncHistory] preventing history loop...', this._cloudNavigationInProgress);
+        return;
       }
+      let op = navigationOp;
+      if (op && op.location && typeof op.location === 'object') {
+        op = { ...op.location, action: op.action || action };
+      } else if (op && !op.action) {
+        op = { ...op, action };
+      }
+      this.navigate(op);
     });
 
     this.onNavigation(({ location, action }) => {
-      // console.log(`[sift-dmarc-insight] onNavigation | pathname: ${location.pathname} | action: ${action} | cloudNavigationInProgress: ${this._cloudNavigationInProgress}`);
+      if (!location || typeof location.pathname !== 'string') {
+        console.warn('[SyncHistory::onNavigation] invalid location:', location);
+        return;
+      }
+      const op =
+        NAVIGATION_ACTIONS[String(action || 'push').toLowerCase()] || 'push';
+      if (typeof history[op] !== 'function') {
+        console.warn(
+          `[SyncHistory::onNavigation] history does not implement "${op}"`
+        );
+        return;
+      }
       this._cloudNavigationInProgress = true;
-      history[action.toLowerCase()](location.pathname + location.search);
+      history[op](location.pathname + (location.search || ''));
     });
-
-    // console.log('[SyncHistory::setup] initialPath:', initialPath);
 
     if (initialPath) {
       history.push(initialPath);
@@ -47,11 +64,6 @@ export default class SyncHistory {
   }
 
   navigate(navigationOp) {
-    // console.log(
-    //   '[SyncHistory::sendEvent] location | navigationOp:',
-    //   navigationOp
-    // );
-
     this._sendEventToCloud({ view: this._view, value: navigationOp });
   }
 
@@ -60,8 +72,10 @@ export default class SyncHistory {
   }
 
   onMessage(data) {
-    console.log('[SyncHistory::onMessage] data:', data);
-
+    if (!data || typeof data !== 'object') {
+      console.warn('[SyncHistory::onMessage] invalid message data:', data);
+      return;
+    }
     const { location, action } = data;
 
     this._onNavigationHandlerFn &&

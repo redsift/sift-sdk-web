@@ -5,26 +5,38 @@ export default class PluginManager {
   _activePlugins = [];
 
   init = ({ pluginConfigs = [], contextType, context, global }) => {
-    pluginConfigs.forEach(pluginConfig => {
+    pluginConfigs.forEach((pluginConfig) => {
+      if (!pluginConfig || typeof pluginConfig !== 'object') {
+        return;
+      }
       const Plugin = this._pluginFactory.find(
-        Plugin => Plugin.id() === pluginConfig.id
+        (Plugin) => Plugin.id() === pluginConfig.id
       );
 
-      if (Plugin && Plugin.contexts().includes(contextType)) {
-        const plugin = new Plugin();
-        if (
-          plugin.init &&
-          plugin.init({ pluginConfigs, contextType, context, global })
-        ) {
-          this._activePlugins.push(plugin);
-        }
+      if (!Plugin || !Plugin.contexts().includes(contextType)) {
+        return;
+      }
+      // Guard against double initialisation (e.g. a replayed init message)
+      if (
+        this._activePlugins.some(
+          (activePlugin) => activePlugin.constructor.id() === pluginConfig.id
+        )
+      ) {
+        return;
+      }
+      const plugin = new Plugin();
+      if (
+        plugin.init &&
+        plugin.init({ pluginConfigs, contextType, context, global })
+      ) {
+        this._activePlugins.push(plugin);
       }
     });
   };
 
   start = ({ pluginConfigs, contextType, context, global }) => {
     this._activePlugins.forEach(
-      activePlugin =>
+      (activePlugin) =>
         activePlugin.start &&
         activePlugin.start({ pluginConfigs, contextType, context, global })
     );
@@ -32,30 +44,30 @@ export default class PluginManager {
 
   stop = ({ pluginConfigs, contextType, context, global }) => {
     this._activePlugins.forEach(
-      activePlugin =>
+      (activePlugin) =>
         activePlugin.stop &&
         activePlugin.stop({ pluginConfigs, contextType, context, global })
     );
+    // Stopped plugins are gone; a new init/start cycle re-creates them
+    this._activePlugins = [];
   };
 
   onMessages = ({ messages }) => {
-    console.log('[PluginManager::onMessages] messages:', messages);
-
     if (!Array.isArray(messages)) {
       throw new Error(
-        '[PluginManager::receivePluginMessages] "messages" has to be an array!'
+        '[PluginManager::onMessages] "messages" has to be an array!'
       );
     }
 
-    messages.forEach(message => {
-      console.log('[PluginManager::onMessage] message:', message);
-
+    messages.forEach((message) => {
+      if (!message || typeof message !== 'object') {
+        return;
+      }
       const plugin = this._activePlugins.find(
-        plugin => plugin.constructor.id() === message.id
+        (plugin) => plugin.constructor.id() === message.id
       );
 
-      if (plugin) {
-        console.log('[SyncHistory::onMessage] message.data:', message.data);
+      if (plugin && typeof plugin.onMessage === 'function') {
         plugin.onMessage(message.data);
       }
     });

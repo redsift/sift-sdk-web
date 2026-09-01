@@ -1,11 +1,22 @@
 import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
-import sha256 from 'js-sha256';
+import {
+  isTrustedOrigin,
+  resolveDispatchTarget,
+  resolveMessagePolicy,
+} from '../lib/message-security';
+import { withHashedEmailSubject } from '../lib/oauth-options';
 
 export default class SiftView {
-  constructor() {
+  constructor({ clientOrigin } = {}) {
     this._resizeHandler = null;
     this._proxy = parent;
+    const { trustedOrigins, targetOrigin } = resolveMessagePolicy({
+      clientOrigin,
+    });
+    this._trustedOrigins = trustedOrigins;
+    this._targetOrigin = targetOrigin;
+    this._messageHandler = this._onWindowMessage.bind(this);
     this.controller = new Observable();
     this._registerMessageListeners();
     this._pluginManager = new PluginManager();
@@ -47,10 +58,12 @@ export default class SiftView {
   }
 
   getPlugin = ({ id }) => {
-    return this._pluginManager
-      .getActivePlugins()
-      // NOTE: see https://stackoverflow.com/questions/28627908/call-static-methods-from-regular-es6-class-methods
-      .find(plugin => plugin.constructor.id() === id);
+    return (
+      this._pluginManager
+        .getActivePlugins()
+        // NOTE: see https://stackoverflow.com/questions/28627908/call-static-methods-from-regular-es6-class-methods
+        .find((plugin) => plugin.constructor.id() === id)
+    );
   };
 
   // --------------------------------------------------------------------------
@@ -66,7 +79,7 @@ export default class SiftView {
           value: value,
         },
       },
-      '*'
+      this._targetOrigin
     );
   }
 
@@ -79,26 +92,41 @@ export default class SiftView {
           value: value,
         },
       },
-      '*'
+      this._targetOrigin
     );
   }
 
   _registerMessageListeners() {
-    window.addEventListener(
-      'message',
-      e => {
-        let method = e.data.method;
-        let params = e.data.params;
-        if (method === 'notifyView') {
-          this.controller.publish(params.topic, params.value);
-        } else if (this[method]) {
-          this[method](params);
-        } else {
-          console.warn('[SiftView]: method not implemented: ', method);
-        }
-      },
-      false
-    );
+    window.addEventListener('message', this._messageHandler, false);
+  }
+
+  _onWindowMessage(e) {
+    if (!isTrustedOrigin(this._trustedOrigins, e.origin)) {
+      return;
+    }
+    const data = e.data;
+    if (!data || typeof data !== 'object' || typeof data.method !== 'string') {
+      return;
+    }
+    const { method, params } = data;
+    if (method === 'notifyView') {
+      if (params && typeof params === 'object') {
+        this.controller.publish(params.topic, params.value);
+      }
+      return;
+    }
+    const fn = resolveDispatchTarget(this, method);
+    if (fn) {
+      fn.call(this, params);
+    } else {
+      console.warn('[SiftView]: method not implemented: ', method);
+    }
+  }
+
+  // Unregisters the window message listener, e.g. when tearing the view down
+  // in tests or single-page-app navigation.
+  destroy() {
+    window.removeEventListener('message', this._messageHandler, false);
   }
 
   // --------------------------------------------------------------------------
@@ -107,18 +135,11 @@ export default class SiftView {
 
   showOAuthPopup({ provider, options = null }) {
     const topic = 'showOAuthPopup';
-    let opt = options;
-    // If an email is passed, hash it into a subject
-    if (options && typeof options === 'object' && options.email) {
-      const { email, ...others } = options;
-      const subject = sha256(email).substr(0, 16);
-      opt = { subject, ...others };
-    }
-    const value = { provider, options: opt };
+    const value = { provider, options: withHashedEmailSubject(options) };
     this.notifyClient(topic, value);
   }
 
-  removeOAuthIdentity({ provider, options = null  }) {
+  removeOAuthIdentity({ provider, options = null }) {
     const topic = 'showOAuthRemovePopup';
     const value = { provider, options };
 
@@ -159,7 +180,9 @@ export default class SiftView {
     if (syncHistoryPlugin) {
       syncHistoryPlugin.setup({ history, initialPath });
     } else {
-      console.log('[SiftSdkWeb] ERROR: To use `syncHistory` please enable the plugin first!');
+      console.error(
+        '[SiftSdkWeb] To use `syncHistory` please enable the plugin first!'
+      );
     }
   }
 }
