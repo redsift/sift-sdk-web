@@ -2,27 +2,17 @@
   "name": "@redsift/sift-sdk-web",
   "version": "2.0.3",
   "description": "SDK for developing web-based Sifts.",
-  "main": "dist/sift-sdk-web.umd.js",
+  "main": "dist/sift-sdk-web.mjs",
   "module": "dist/sift-sdk-web.mjs",
-  "browser": "dist/sift-sdk-web.umd.js",
   "exports": {
-    ".": {
-      "import": "./dist/sift-sdk-web.mjs",
-      "require": "./dist/sift-sdk-web.umd.js",
-      "default": "./dist/sift-sdk-web.umd.js"
-    },
-    "./react": {
-      "import": "./dist/react.mjs",
-      "require": "./dist/react.umd.js",
-      "default": "./dist/react.umd.js"
-    },
+    ".": "./dist/sift-sdk-web.mjs",
+    "./react": "./dist/react.mjs",
     "./package.json": "./package.json",
     "./dist/*": "./dist/*"
   },
   "sideEffects": false,
   "files": [
-    "dist",
-    "react.js"
+    "dist"
   ],
   "scripts": {
     "build": "npm run clean && rollup --config rollup.config.mjs",

@@ -1,6 +1,5 @@
 // Smoke test for the built SDK bundle, run in Node with faked browser globals.
 import assert from 'assert';
-import vm from 'vm';
 import { readFileSync } from 'fs';
 
 const sent = []; // messages posted to the (fake) parent window
@@ -696,34 +695,6 @@ async function main() {
     params: {},
   });
 
-  // ---- the UMD build must work with no module system at all -----------------
-  // A <script> tag provides neither `exports` nor `define`, which is exactly
-  // where the previous output failed: it was ESM run through Babel's UMD
-  // transform and expected @babel/runtime helper globals no page defines.
-  const umdSource = readFileSync(
-    new URL('../dist/sift-sdk-web.umd.js', import.meta.url),
-    'utf8'
-  );
-  const scriptTagContext = vm.createContext({
-    JS_SHA256_NO_NODE_JS: true,
-    console,
-  });
-  vm.runInContext(umdSource, scriptTagContext);
-  const umd = scriptTagContext.SiftSdkWeb;
-  assert.ok(umd, 'the UMD build exposes its global without a module system');
-  [
-    'createSiftView',
-    'createSiftController',
-    'SiftView',
-    'SiftController',
-  ].forEach((name) =>
-    assert.strictEqual(
-      typeof umd[name],
-      'function',
-      `the UMD global exports ${name}`
-    )
-  );
-
   // ---- the React entry must never bundle React ------------------------------
   // A bundled second copy means useSiftView's hooks run against a dispatcher
   // the host app never populates. Published 2.0.3 did exactly that and threw
@@ -735,25 +706,9 @@ async function main() {
   );
   assert.ok(
     /from ['"]react['"]/.test(reactEsm),
-    'the React module build imports react instead of bundling it'
+    'the React build imports react instead of bundling it'
   );
-  assert.ok(
-    !REACT_IMPL.test(reactEsm),
-    'no React implementation is bundled into the module build'
-  );
-  const reactUmd = readFileSync(
-    new URL('../dist/react.umd.js', import.meta.url),
-    'utf8'
-  );
-  assert.ok(
-    /require\(['"]react['"]\)/.test(reactUmd),
-    'the React UMD declares react as an external dependency'
-  );
-  assert.ok(
-    !REACT_IMPL.test(reactUmd),
-    'no React implementation is bundled into the UMD build'
-  );
-
+  assert.ok(!REACT_IMPL.test(reactEsm), 'no React implementation is bundled');
   console.log('All smoke tests passed.');
 }
 

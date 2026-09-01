@@ -3,3 +3,4 @@ dist
 npm-debug.log
 stats.html
 .eslintcache
+*.tgz

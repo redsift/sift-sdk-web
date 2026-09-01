@@ -9,56 +9,29 @@ import resolve from '@rollup/plugin-node-resolve';
 // peer either.
 const PEERS = ['react'];
 
-const PRESETS = [['@babel/preset-env']];
-
-// For the module builds, Babel's helpers are imported from @babel/runtime — a
-// declared dependency — so a consumer's bundler dedupes them across packages.
-const babelRuntime = () =>
-  babel({
-    babelHelpers: 'runtime',
-    babelrc: false,
-    configFile: false,
-    presets: PRESETS,
-    plugins: [['@babel/plugin-transform-runtime']],
-    extensions: ['.js'],
-  });
-
-// A UMD bundle has to stand alone in a <script> tag, so its helpers are
-// inlined instead. The previous "UMD" output imported them from
-// @babel/runtime and expected globals that no page provides.
-const babelBundled = () =>
-  babel({
-    babelHelpers: 'bundled',
-    babelrc: false,
-    configFile: false,
-    presets: PRESETS,
-    extensions: ['.js'],
-  });
-
+// ESM only. Sifts are built with bundlers, which consume ESM directly, so
+// there is no UMD/AMD/CJS output to keep in step.
 const moduleBuild = (input, file) => ({
   input,
+  // Babel's helpers are imported from @babel/runtime — a declared dependency —
+  // so a consumer's bundler dedupes them across packages.
   external: [...PEERS, /^@babel\/runtime/],
-  plugins: [resolve(), commonjs(), babelRuntime()],
+  plugins: [
+    resolve(),
+    commonjs(),
+    babel({
+      babelHelpers: 'runtime',
+      babelrc: false,
+      configFile: false,
+      presets: [['@babel/preset-env']],
+      plugins: [['@babel/plugin-transform-runtime']],
+      extensions: ['.js'],
+    }),
+  ],
   output: { file, format: 'es', sourcemap: true },
-});
-
-const umdBuild = (input, file, name) => ({
-  input,
-  external: PEERS,
-  plugins: [resolve(), commonjs(), babelBundled()],
-  output: {
-    file,
-    format: 'umd',
-    name,
-    globals: { react: 'React' },
-    sourcemap: true,
-    exports: 'named',
-  },
 });
 
 export default [
   moduleBuild('./src/index.js', 'dist/sift-sdk-web.mjs'),
-  umdBuild('./src/index.js', 'dist/sift-sdk-web.umd.js', 'SiftSdkWeb'),
   moduleBuild('./src/react.js', 'dist/react.mjs'),
-  umdBuild('./src/react.js', 'dist/react.umd.js', 'SiftSdkWebReact'),
 ];
