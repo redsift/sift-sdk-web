@@ -51,7 +51,8 @@ export default class EmailClientController {
     var trdis = {};
     params.tris.forEach((thread) => {
       if (
-        thread.value !== undefined &&
+        thread &&
+        thread.value != null &&
         thread.value.list !== undefined &&
         this.loadThreadListView
       ) {

@@ -14,6 +14,7 @@ export default class SyncHistory {
   _onNavigationHandlerFn = null;
   _view = null;
   _cloudNavigationInProgress = false;
+  _unlisten = null;
 
   init = ({ context }) => {
     this._view = context;
@@ -22,11 +23,27 @@ export default class SyncHistory {
     return true;
   };
 
+  // Called by the PluginManager when plugins are stopped: unsubscribe from
+  // the history so a discarded instance does not keep forwarding navigations
+  stop = () => {
+    if (this._unlisten) {
+      this._unlisten();
+      this._unlisten = null;
+    }
+    this._onNavigationHandlerFn = null;
+    this._cloudNavigationInProgress = false;
+  };
+
   setup({ history, initialPath = null }) {
+    // A repeated setup replaces the previous subscription
+    if (this._unlisten) {
+      this._unlisten();
+      this._unlisten = null;
+    }
     // NOTE: react-router v3 sends the `action` as part of the `navigationOp`,
     // react-router v4 sends it as a separate parameter and the history v5
     // package bundles both as `{ location, action }`:
-    history.listen((navigationOp, action = null) => {
+    const unlisten = history.listen((navigationOp, action = null) => {
       // NOTE: prevent recursion when the back/next button is pressed in Cloud:
       if (this._cloudNavigationInProgress) {
         this._cloudNavigationInProgress = false;
@@ -40,6 +57,10 @@ export default class SyncHistory {
       }
       this.navigate(op);
     });
+    // Every supported history version returns an unsubscribe function
+    if (typeof unlisten === 'function') {
+      this._unlisten = unlisten;
+    }
 
     this.onNavigation(({ location, action }) => {
       if (!location || typeof location.pathname !== 'string') {

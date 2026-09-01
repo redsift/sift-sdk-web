@@ -148,6 +148,9 @@ async function main() {
   const fakeHistory = {
     listen: function (fn) {
       fakeHistory._listener = fn;
+      return () => {
+        fakeHistory._listener = null;
+      };
     },
     push: (p) => historyCalls.push(['push', p]),
     replace: (p) => historyCalls.push(['replace', p]),
@@ -213,6 +216,20 @@ async function main() {
     method: '_receivePluginMessages',
     params: { messages: [{ id: 'unknown-plugin', data: {} }] },
   });
+
+  // stopping plugins unsubscribes sync-history from the history object, so a
+  // discarded instance cannot keep forwarding navigations
+  deliver('https://app.redsift.com', { method: '_stopPlugins', params: {} });
+  assert.strictEqual(
+    view._pluginManager.getActivePlugins().length,
+    0,
+    'stop clears active plugins'
+  );
+  assert.strictEqual(
+    fakeHistory._listener,
+    null,
+    'stop unsubscribes the history listener'
+  );
 
   // ---- SiftController in a fake worker scope --------------------------------
   const workerPosts = [];
@@ -332,6 +349,17 @@ async function main() {
   workerDeliver({ method: 'emailStats' }); // no params: must not throw
   workerDeliver({ method: 'getThreadRowDisplayInfo' }); // no params: must not throw
   workerDeliver({ method: 'getThreadRowDisplayInfo', params: { tris: null } });
+  // malformed tris entries must be skipped, not throw, and still answer
+  const emailPostsBefore = workerPosts.length;
+  workerDeliver({
+    method: 'getThreadRowDisplayInfo',
+    params: { tris: [null, { value: null }, { key: 'k', value: {} }] },
+  });
+  assert.strictEqual(workerPosts.length, emailPostsBefore + 1);
+  assert.deepStrictEqual(last(workerPosts), {
+    method: 'getThreadRowDisplayInfoCallback',
+    params: {},
+  });
 
   console.log('All smoke tests passed.');
 }
