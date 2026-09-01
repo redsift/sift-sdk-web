@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import { babel } from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
@@ -9,8 +10,19 @@ import resolve from '@rollup/plugin-node-resolve';
 // peer either.
 const PEERS = ['react'];
 
-// Keep in step with the @babel/runtime dependency in package.json
-const RUNTIME_VERSION = '^7.29.7';
+// Read from package.json rather than duplicated here: transform-runtime must
+// only emit helpers the declared runtime actually provides, and a hard-coded
+// copy would drift from the dependency it has to match.
+const pkg = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8')
+);
+const RUNTIME_VERSION = pkg.dependencies && pkg.dependencies['@babel/runtime'];
+if (!RUNTIME_VERSION) {
+  throw new Error(
+    'rollup.config.mjs: @babel/runtime must be a dependency — the build emits ' +
+      'helper imports from it, and its version decides which helpers are safe.'
+  );
+}
 
 // ESM only. Sifts are built with bundlers, which consume ESM directly, so
 // there is no UMD/AMD/CJS output to keep in step.
