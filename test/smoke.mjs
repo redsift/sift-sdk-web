@@ -321,6 +321,97 @@ async function main() {
     params: { messages: [{ id: 'unknown-plugin', data: {} }] },
   });
 
+  // ---- track-ui-activity: throttling and listener removal -------------------
+  // Driven through the plugin's own lifecycle API — the same { context, global }
+  // PluginManager passes — so the test controls the global and the clock.
+  const activityPlugin = view.getPlugin({ id: 'track-ui-activity' });
+  assert.ok(activityPlugin, 'track-ui-activity is active');
+
+  const captureOf = (opts) => !!(opts === true || (opts && opts.capture));
+  const globalListeners = [];
+  const fakeGlobal = {
+    addEventListener: (type, fn, opts) =>
+      globalListeners.push({ type, fn, capture: captureOf(opts) }),
+    // removal requires the capture flag to match, as the DOM does
+    removeEventListener: (type, fn, opts) => {
+      const capture = captureOf(opts);
+      const index = globalListeners.findIndex(
+        (l) => l.type === type && l.fn === fn && l.capture === capture
+      );
+      if (index !== -1) {
+        globalListeners.splice(index, 1);
+      }
+    },
+    dispatch: (type) =>
+      globalListeners
+        .filter((l) => l.type === type)
+        .forEach((l) => l.fn({ type })),
+  };
+  const activityPings = [];
+  const activityContext = {
+    notifyClient: (topic, value) => activityPings.push({ topic, value }),
+  };
+
+  const realDateNow = Date.now;
+  let clock = 1000000;
+  Date.now = () => clock;
+  try {
+    activityPlugin.start({ context: activityContext, global: fakeGlobal });
+    assert.deepStrictEqual(
+      globalListeners.map((l) => l.type).sort(),
+      ['click', 'keydown', 'mousedown', 'mousemove', 'scroll', 'touchstart'],
+      'every activity event is listened for'
+    );
+    assert.ok(
+      globalListeners.find((l) => l.type === 'scroll').capture,
+      'scroll is captured, so it is seen from nested scrollers'
+    );
+    assert.strictEqual(
+      activityPings.length,
+      1,
+      'the view having started counts as activity'
+    );
+    assert.strictEqual(last(activityPings).topic, 'track-ui-activity');
+
+    // a burst inside the throttle window must not become a burst of messages
+    for (let i = 0; i < 50; i += 1) {
+      fakeGlobal.dispatch('mousemove');
+      fakeGlobal.dispatch('scroll');
+    }
+    assert.strictEqual(
+      activityPings.length,
+      1,
+      'activity is throttled, not one message per event'
+    );
+
+    // once the window has elapsed the next event reports again
+    clock += 6000;
+    fakeGlobal.dispatch('mousemove');
+    assert.strictEqual(
+      activityPings.length,
+      2,
+      'activity is reported again after the throttle window'
+    );
+
+    // stop() must remove every listener, the capture-phase scroll included
+    activityPlugin.stop({ context: activityContext, global: fakeGlobal });
+    assert.deepStrictEqual(
+      globalListeners,
+      [],
+      'stop removes every activity listener'
+    );
+
+    clock += 60000;
+    fakeGlobal.dispatch('mousemove');
+    assert.strictEqual(
+      activityPings.length,
+      2,
+      'a stopped plugin reports nothing'
+    );
+  } finally {
+    Date.now = realDateNow;
+  }
+
   // stopping plugins unsubscribes sync-history from the history object, so a
   // discarded instance cannot keep forwarding navigations
   deliver('https://app.redsift.com', { method: '_stopPlugins', params: {} });
@@ -403,6 +494,16 @@ async function main() {
     /clientOrigin/,
     'an unparseable clientOrigin throws instead of falling back'
   );
+
+  // an explicitly empty configuration is a misconfiguration too (an unset env
+  // var arrives as ''), and must not silently fall through to discovery
+  ['', null, []].forEach((value) => {
+    assert.throws(
+      () => createSiftView({}, { clientOrigin: value }),
+      /clientOrigin/,
+      `an explicitly empty clientOrigin (${JSON.stringify(value)}) throws`
+    );
+  });
 
   // ...but valid entries alongside an invalid one are still honoured
   const partialView = createSiftView(

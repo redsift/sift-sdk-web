@@ -38,7 +38,10 @@ export function originOf(url) {
  */
 export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
   const own = ownOrigin(win);
-  const supplied = [].concat(clientOrigin || []);
+  // `undefined` means the option was omitted; anything else — including '',
+  // null and [] — is an explicit configuration that must yield an origin
+  const configured = clientOrigin !== undefined;
+  const supplied = configured ? [].concat(clientOrigin) : [];
   const explicit = [];
   supplied.forEach((origin) => {
     const normalized = origin === '*' ? '*' : originOf(origin);
@@ -55,7 +58,7 @@ export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
   // an unparseable value and quietly discovering the origin instead would
   // defeat exactly what it configured, so fail loudly rather than fall
   // through to discovery or the wildcard fallback.
-  if (supplied.length > 0 && explicit.length === 0) {
+  if (configured && explicit.length === 0) {
     throw new Error(
       '[SiftSdkWeb] `clientOrigin` was supplied but contained no valid origin: ' +
         JSON.stringify(supplied)
