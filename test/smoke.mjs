@@ -124,6 +124,24 @@ async function main() {
     'destroy is not message-dispatchable'
   );
 
+  // the bound dispatcher alias must not be reachable either: it would let a
+  // message re-enter dispatch carrying an `origin` field of its own choosing
+  presented = null;
+  deliver('https://app.redsift.com', { method: '_messageHandler' }); // no throw
+  deliver('https://app.redsift.com', {
+    method: '_messageHandler',
+    params: {
+      origin: 'https://app.redsift.com',
+      data: { method: 'presentView', params: { reentered: true } },
+    },
+  });
+  assert.strictEqual(
+    presented,
+    null,
+    '_messageHandler is not message-dispatchable (no dispatch re-entry)'
+  );
+  deliver('https://app.redsift.com', { method: '_onWindowMessage' }); // no throw
+
   // the raw outbound emitters must not be drivable by an inbound message
   const sentBeforeReflect = sent.length;
   deliver('https://app.redsift.com', {
@@ -185,6 +203,15 @@ async function main() {
     push: (p) => historyCalls.push(['push', p]),
     replace: (p) => historyCalls.push(['replace', p]),
   };
+  // A truthy but unusable history must be rejected rather than handed to
+  // .listen(). NOTE: the sync-history plugin has to be active for this to
+  // reach the plugin's own guard at all.
+  assert.ok(view.getPlugin({ id: 'sync-history' }), 'sync-history is active');
+  deliver('https://app.redsift.com', {
+    method: 'setupSyncHistory',
+    params: { history: {} },
+  });
+
   view.setupSyncHistory({ history: fakeHistory });
 
   // an unknown navigation action is ignored, not treated as push
@@ -315,7 +342,10 @@ async function main() {
   const workerPosts = [];
   const workerListeners = [];
   const makeFakeWorkerScope = () => {
+    // Clear posts too, so assertions are scoped to the controller under test
+    // and `last(workerPosts)` cannot read a previous scope's message
     workerListeners.length = 0;
+    workerPosts.length = 0;
     globalThis.self = {
       addEventListener: (type, fn) => workerListeners.push({ type, fn }),
       postMessage: (msg) => workerPosts.push(msg),
@@ -342,6 +372,25 @@ async function main() {
     last(workerPosts).method,
     'loadViewFailedCallback',
     'undefined result reported'
+  );
+
+  // a controller that implements no loadView at all must report failure
+  // rather than leaving the host waiting for a callback that never comes
+  makeFakeWorkerScope();
+  createSiftController({});
+  workerDeliver({
+    method: 'loadView',
+    params: { type: 'summary', sizeClass: 'full' },
+  });
+  assert.strictEqual(
+    workerPosts.length,
+    1,
+    'missing loadView posts exactly one reply'
+  );
+  assert.strictEqual(
+    last(workerPosts).method,
+    'loadViewFailedCallback',
+    'missing loadView reported'
   );
 
   // promise data: html-first callback, then data callback

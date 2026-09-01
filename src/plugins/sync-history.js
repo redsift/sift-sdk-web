@@ -34,7 +34,14 @@ export default class SyncHistory {
     this._cloudNavigationInProgress = false;
   };
 
-  setup({ history, initialPath = null }) {
+  setup({ history, initialPath = null } = {}) {
+    if (!history || typeof history.listen !== 'function') {
+      console.error(
+        '[SyncHistory::setup] requires a history object with a `listen` method, got:',
+        history
+      );
+      return;
+    }
     // A repeated setup replaces the previous subscription
     if (this._unlisten) {
       this._unlisten();

@@ -163,9 +163,14 @@ export default class SiftController {
       console.warn('[SiftController::_loadView]: invalid loadView params');
       return;
     }
-    if (!this.loadView) {
+    if (typeof this.loadView !== 'function') {
       console.error(
         '[SiftController::_loadView]: Sift controller must implement the loadView method'
+      );
+      // Tell the view, or it waits for a callback that never comes
+      this._triggerSiftViewFailed(
+        params,
+        new Error('Sift controller does not implement loadView')
       );
       return;
     }

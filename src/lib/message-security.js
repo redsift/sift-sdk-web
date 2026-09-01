@@ -102,6 +102,9 @@ export function isTrustedOrigin(trustedOrigins, origin) {
 export const NON_DISPATCHABLE_VIEW_METHODS = [
   'destroy',
   '_onWindowMessage',
+  // the bound alias of _onWindowMessage held for removeEventListener: without
+  // it a message could re-enter dispatch with an origin field of its choosing
+  '_messageHandler',
   '_registerMessageListeners',
   'publish',
   'notifyClient',
