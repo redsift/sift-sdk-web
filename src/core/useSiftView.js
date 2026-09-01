@@ -33,17 +33,25 @@ const useSiftView = (props = {}) => {
   // concurrent rendering.
   const willPresentViewRef = useRef(willPresentView);
 
-  const siftView = useMemo(() => {
-    const outbound = createOutbound({
-      proxy,
-      targetOrigin: messagePolicy.targetOrigin,
-    });
-    const plugins = createPluginSurface({
-      pluginManager,
-      notifyClient: outbound.notifyClient,
-      global: window,
-    });
+  const outbound = useMemo(
+    () => createOutbound({ proxy, targetOrigin: messagePolicy.targetOrigin }),
+    [proxy, messagePolicy]
+  );
+  // Hoisted out of the view below so the teardown effect can reach the same
+  // instance: unmount has to stop plugins exactly the way `SiftView.destroy`
+  // does, including handing them the `{ notifyClient }` context that
+  // PluginManager forwards to each plugin's `stop`.
+  const plugins = useMemo(
+    () =>
+      createPluginSurface({
+        pluginManager,
+        notifyClient: outbound.notifyClient,
+        global: window,
+      }),
+    [pluginManager, outbound]
+  );
 
+  const siftView = useMemo(() => {
     return {
       resizeHandler: null,
       proxy,
@@ -68,7 +76,7 @@ const useSiftView = (props = {}) => {
         }
       },
     };
-  }, [proxy, controller, pluginManager, messagePolicy]);
+  }, [proxy, controller, pluginManager, outbound, plugins]);
 
   const siftViewRef = useRef(siftView);
 
@@ -90,9 +98,9 @@ const useSiftView = (props = {}) => {
       window.removeEventListener('message', messageHandler, false);
       // Plugins hold global listeners (activity tracking, history sync):
       // stop them too, or they outlive the unmounted view
-      pluginManager.stop({ contextType: 'view', global: window });
+      plugins.stopPlugins();
     };
-  }, [controller, pluginManager, messagePolicy, proxy]);
+  }, [controller, messagePolicy, plugins, proxy]);
 
   return useMemo(() => [params, siftView], [params, siftView]);
 };

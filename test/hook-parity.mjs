@@ -243,18 +243,22 @@ assert.deepStrictEqual(
   'notifyView is routed to the controller observable'
 );
 
-// unmount must remove the listener and stop the plugins it started
+// unmount must remove the listener and stop the plugins it started, handing
+// them the same context `SiftView.destroy` does — PluginManager forwards it to
+// every plugin's `stop`, so an omission here is a difference a third-party
+// plugin would see on unmount only
 let probeStopped = false;
-liveView.pluginManager._pluginFactory = [
-  class Probe {
-    static id = () => 'probe';
-    static contexts = () => ['view'];
-    init = () => true;
-    stop = () => {
-      probeStopped = true;
-    };
-  },
-];
+let stopArgs = null;
+const ProbePlugin = class {
+  static id = () => 'probe';
+  static contexts = () => ['view'];
+  init = () => true;
+  stop = (args) => {
+    probeStopped = true;
+    stopArgs = args;
+  };
+};
+liveView.pluginManager._pluginFactory = [ProbePlugin];
 liveView._initPlugins({ pluginConfigs: [{ id: 'probe' }] });
 assert.strictEqual(
   liveView.pluginManager.getActivePlugins().length,
@@ -268,6 +272,35 @@ TestRenderer.act(() => {
 });
 assert.deepStrictEqual(windowListeners, [], 'unmount removes the listener');
 assert.strictEqual(probeStopped, true, 'unmount stops the plugins');
+assert.strictEqual(stopArgs.contextType, 'view', 'stop gets the context type');
+assert.deepStrictEqual(
+  Object.keys(stopArgs.context ?? {}),
+  ['notifyClient'],
+  'unmount hands plugins the same { notifyClient } context as the class'
+);
+
+// ...and the class's teardown agrees, member for member
+let classStopArgs = null;
+const teardownView = createSiftView({}, { clientOrigin: CLIENT });
+teardownView._pluginManager._pluginFactory = [
+  class extends ProbePlugin {
+    stop = (args) => {
+      classStopArgs = args;
+    };
+  },
+];
+teardownView._initPlugins({ pluginConfigs: [{ id: 'probe' }] });
+teardownView.destroy();
+assert.deepStrictEqual(
+  Object.keys(classStopArgs).sort(),
+  Object.keys(stopArgs).sort(),
+  'both teardowns pass the same shape to a plugin'
+);
+assert.deepStrictEqual(
+  Object.keys(classStopArgs.context ?? {}),
+  ['notifyClient'],
+  "the class's teardown context matches too"
+);
 deliver(CLIENT, { method: 'presentView', params: { after: 'unmount' } });
 assert.deepStrictEqual(
   liveParams,
