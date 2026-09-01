@@ -43,6 +43,7 @@ protocol, the message security, and the plugin system.
 - [Origin and message security](#origin-and-message-security)
 - [Plugins](#plugins)
 - [TypeScript](#typescript)
+- [Upgrading to 3.0](#upgrading-to-30)
 - [Upgrading from 2.0.x](#upgrading-from-20x)
 - [Development](#development)
 
@@ -135,8 +136,9 @@ const view = createSiftView(
       // ...
     },
   },
-  // Pin the protocol to the client's origin. See "Origin and message
-  // security" — this is optional, but recommended.
+  // Pin the protocol to the client's origin. Optional where the host lets the
+  // origin be discovered, required otherwise — construction throws rather
+  // than running unpinned. See "Origin and message security".
   { clientOrigin: 'https://app.redsift.io' }
 );
 
@@ -402,30 +404,42 @@ channel are checked.
 **Inbound** messages must clear three checks before anything is dispatched:
 
 1. `event.origin` is one of the trusted origins;
-2. `event.source` is the embedding window (or this window itself) whenever the
-   browser supplies one — a trusted origin is not enough on its own, because
-   sibling frames and popups on the client's origin can hold a reference to
-   this frame and post to it;
+2. `event.source` **is** the embedding window — a trusted origin is not enough
+   on its own, because sibling frames and popups on the client's origin can
+   hold a reference to this frame and post to it. Strict equality, with no
+   exception for an absent `source`: `MessageEvent.source` is null for anything
+   that is not a window, so a service worker, `MessagePort` or
+   `BroadcastChannel` on this very origin would otherwise be able to drive the
+   whole inbound protocol. A view that is not embedded still works, since
+   `parent === window` there;
 3. the payload is an object with a string `method`.
 
 ### How the origin is resolved
 
 `clientOrigin` accepts a string or an array of strings.
 
-| Situation                                                 | Trusted origins                             | Outbound target                                                   |
-| --------------------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------- |
-| `clientOrigin` given                                      | those origins, plus this page's own         | the embedding origin when it is one of them, else the first entry |
-| omitted, `location.ancestorOrigins` available             | the embedding origin, plus this page's own  | the embedding origin                                              |
-| omitted, no `ancestorOrigins`, usable `document.referrer` | the referrer's origin, plus this page's own | the referrer's origin                                             |
-| omitted, not embedded                                     | this page's own origin                      | this page's own origin                                            |
-| nothing resolvable                                        | any (legacy behaviour, warned once)         | `'*'`                                                             |
-| `clientOrigin: '*'`                                       | any                                         | `'*'`                                                             |
+| Situation                                                 | Trusted origins        | Outbound target                                                   |
+| --------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------- |
+| `clientOrigin` given                                      | those origins          | the embedding origin when it is one of them, else the first entry |
+| omitted, `location.ancestorOrigins` available             | the embedding origin   | the embedding origin                                              |
+| omitted, no `ancestorOrigins`, usable `document.referrer` | the referrer's origin  | the referrer's origin                                             |
+| omitted, not embedded                                     | this page's own origin | this page's own origin                                            |
+| `clientOrigin: '*'`                                       | any                    | `'*'`                                                             |
+| nothing resolvable                                        | **throws**             | **throws**                                                        |
 
-This page's own origin is always trusted: same-origin code can reach into the
-window directly in any case, and the legacy `iframe-controller` host relays
-protocol messages from a same-origin window.
+The trusted set is exactly the client — this page's own origin is not added to
+it. With the source check below requiring the embedding window, a message from
+anywhere else on this origin is rejected regardless, so listing it would widen
+the set for nothing.
 
-Two edge cases are handled deliberately rather than by accident:
+**An unresolvable origin fails closed.** Earlier versions fell back to
+accepting and posting to any origin, which kept a broken deployment working at
+the cost of running unpinned — and nothing looked wrong while every message was
+readable by any embedder. It now throws, and the escape hatch is explicit:
+`clientOrigin: '*'` restores the unpinned behaviour, so an operator can unbreak
+production without a code change.
+
+Two cases make an origin unresolvable, and both are deliberate:
 
 - **Opaque origins** — `file:`, `data:`, and sandboxed documents without
   `allow-same-origin` — all serialize to the literal string `"null"` while not
@@ -435,18 +449,19 @@ Two edge cases are handled deliberately rather than by accident:
   for the frame's _initial_ navigation. Once the view navigates itself the
   referrer becomes the previous document in the same frame, which says nothing
   about the client. A referrer on the view's own origin is therefore discarded
-  as stale, and the SDK falls back to the legacy any-origin policy — a working
-  channel — rather than pinning to an origin that would make the browser drop
-  every message in both directions.
+  as stale rather than pinned to, which would make the browser drop every
+  message in both directions.
 
-**If your view navigates in-frame, pass `clientOrigin` explicitly.** Browsers
-without `location.ancestorOrigins` (Firefox) have nothing else to go on after
-the first navigation.
+So a host keeps discovery working by granting the frame `allow-same-origin`
+(its origin is then not opaque) and by not stripping the referrer — a
+`Referrer-Policy` of `no-referrer` on the embedding page leaves Firefox, which
+has no `ancestorOrigins`, with nothing to go on. **If your view navigates
+in-frame, pass `clientOrigin` explicitly**, for the same reason.
 
-Passing a `clientOrigin` that yields no valid origin **throws**. A sift that
-asks for a restriction must not silently get origin discovery, or the legacy
-wildcard, instead. Individual unparseable entries in an array are logged and
-skipped; only an entirely empty result throws.
+Passing a `clientOrigin` that yields no valid origin **throws** as well. A sift
+that asks for a restriction must not silently get origin discovery instead.
+Individual unparseable entries in an array are logged and skipped; only an
+entirely empty result throws.
 
 ### What an inbound message cannot do
 
@@ -482,6 +497,10 @@ const params = {
 A plugin only initialises in a context it declares, is never initialised twice
 for the same id, and is dropped from the active set when stopped — a later
 init/start cycle recreates it.
+
+A plugin's `context` is `{ notifyClient }` and nothing more, so it can send
+topics to the client — pinned, like the view's own — without reaching the rest
+of the view's surface.
 
 | Plugin id           | Contexts | What it does                                                |
 | ------------------- | -------- | ----------------------------------------------------------- |
@@ -542,6 +561,31 @@ so `test/types/api.test-d.ts` exercises the public surface and `npm run
 typecheck` runs in CI — the drift is a build failure, not a surprise at
 install time.
 
+## Upgrading to 3.0
+
+The origin model changed in ways that can turn a previously "working" view
+into a loud failure. That is the point — the failure was already there, just
+silent.
+
+- **An unresolvable client origin now throws** instead of falling back to
+  accepting and posting to any origin. If a view constructs and immediately
+  throws `Could not determine the client origin`, the host is not giving it
+  anything to discover: grant the frame `allow-same-origin`, stop stripping the
+  referrer, or pass `clientOrigin` explicitly. `clientOrigin: '*'` restores the
+  old unpinned behaviour if you need production working first.
+- **`event.source` is now checked strictly.** A message whose `source` is not
+  the embedding window is dropped, including one with no `source` at all. If
+  something in your view was driving the protocol from a service worker, a
+  `MessagePort`, or `window.postMessage` to itself, it will stop being
+  delivered.
+- **The trusted set no longer includes your own origin.** It is exactly the
+  client. Nothing legitimate relied on this once the source check is strict.
+- **Plugins receive `{ notifyClient }`, not the whole view.** Only relevant if
+  you wrote a plugin against the internal context object.
+
+Nothing else in the API changed, and `SiftView` and `useSiftView` are now the
+same implementation underneath, so they cannot disagree about any of it.
+
 ## Upgrading from 2.0.x
 
 - **ESM only.** The package publishes `.mjs` bundles and an `exports` map. The
@@ -565,15 +609,24 @@ install time.
 npm ci
 npm run lint        # eslint (flat config)
 npm run typecheck   # tsc --noEmit over the declarations and their tests
-npm test            # builds, then runs the behavioural smoke suite
+npm test            # builds, then runs the three test suites below
 npm run build       # rollup, ESM bundles into dist/
 npm run format      # prettier
 ```
 
-`test/smoke.mjs` runs against the **built bundles**, not the sources, so it
-covers the packaging as well as the behaviour: origin and source filtering,
-malformed payloads, the dispatch denylists, plugin lifecycle and cleanup,
-controller load-view paths, and the assertion that React is not bundled.
+All three suites run against the **built bundles**, not the sources, so they
+cover the packaging as well as the behaviour:
+
+- `test/smoke.mjs` — origin and source filtering, malformed payloads, the
+  dispatch denylists, plugin lifecycle and cleanup, the controller's load-view
+  paths and callback ordering, and the assertion that React is not bundled.
+- `test/export-parity.mjs` — every value the declarations export exists at
+  runtime, and every runtime export is declared. Compiling the type test cannot
+  catch that direction, since it only contains code that should compile.
+- `test/hook-parity.mjs` — renders `useSiftView` for real (server-side, so the
+  render phase runs) and checks that it exposes the same members as `SiftView`
+  and puts identical messages on the wire. Both are wiring over
+  `src/lib/view-core.js`; this is what keeps them from drifting apart again.
 
 Releases are tag-driven. CI publishes on a `vX.Y.Z` tag and fails if the tag
 does not match the version in `package.json`; pushes to branches only build.

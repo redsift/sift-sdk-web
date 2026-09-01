@@ -22,7 +22,7 @@ export function originOf(url) {
  * for outbound messages, in order of preference:
  *
  *  1. An explicit `clientOrigin` (string or array of strings) configured by
- *     the sift. Pass `'*'` to explicitly restore the legacy behaviour.
+ *     the sift. Pass `'*'` to opt out of pinning entirely.
  *     Supplying a value that yields no valid origin throws: a sift asking
  *     for a restriction must not silently get discovery instead.
  *  2. For an embedded view, the origin of the window embedding it — see
@@ -30,11 +30,16 @@ export function originOf(url) {
  *     alone is not enough.
  *  3. The page's own origin when it is not embedded (development, tests).
  *
- * When none of these can be established the legacy behaviour is kept —
- * accept and post to any origin — with a warning, so existing deployments
- * keep working rather than losing the channel.
+ * When none of these can be established this throws rather than falling back
+ * to accepting and posting to any origin. An unresolvable origin is a broken
+ * deployment either way; failing loudly beats running unpinned, where nothing
+ * would look wrong while every message was readable by any embedder. Hosts
+ * make discovery work by granting the frame `allow-same-origin` (so its origin
+ * is not opaque) and by not stripping the referrer; a sift that lands in a
+ * context where neither holds passes `{ clientOrigin }` explicitly, or
+ * `{ clientOrigin: '*' }` to accept the old unpinned behaviour.
  *
- * `trustedOrigins === null` means "accept any origin".
+ * `trustedOrigins === null` means "accept any origin", reachable only via '*'.
  */
 export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
   const own = ownOrigin(win);
@@ -79,28 +84,24 @@ export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
     // the first entry would have the browser silently drop every message
     const target =
       client && explicit.indexOf(client) !== -1 ? client : explicit[0];
-    return {
-      trustedOrigins: withOwnOrigin(explicit, own),
-      targetOrigin: target,
-    };
+    return { trustedOrigins: explicit, targetOrigin: target };
   }
 
   if (client) {
-    return {
-      trustedOrigins: withOwnOrigin([client], own),
-      targetOrigin: client,
-    };
+    // Exactly the window this view talks to. The page's own origin is not
+    // added: with `isTrustedSource` requiring the embedding window, a message
+    // from anywhere else on our own origin is rejected by the source check
+    // anyway, so listing it would only widen the trusted set for nothing.
+    return { trustedOrigins: [client], targetOrigin: client };
   }
 
-  if (!warnedLegacyFallback) {
-    warnedLegacyFallback = true;
-    console.warn(
-      '[SiftSdkWeb] Could not determine the client origin (no clientOrigin option, no location.ancestorOrigins, and no usable document.referrer). ' +
-        'Falling back to the legacy behaviour of accepting and posting messages to any origin; ' +
-        'pass { clientOrigin } to lock this down.'
-    );
-  }
-  return { trustedOrigins: null, targetOrigin: '*' };
+  throw new Error(
+    '[SiftSdkWeb] Could not determine the client origin: no `clientOrigin` option, ' +
+      'no location.ancestorOrigins, and no usable document.referrer. Refusing to fall ' +
+      'back to accepting and posting messages to any origin. Pass ' +
+      '{ clientOrigin: "https://your-client.example" }, or { clientOrigin: "*" } to ' +
+      'accept the unpinned behaviour.'
+  );
 }
 
 export function isTrustedOrigin(trustedOrigins, origin) {
@@ -108,23 +109,22 @@ export function isTrustedOrigin(trustedOrigins, origin) {
 }
 
 /**
- * Binds the protocol to the window that embeds this view. A trusted origin
- * alone is not enough: sibling frames and popups served from the client's
- * own origin can hold this frame's WindowProxy and post to it (this product
- * opens OAuth popups on exactly that origin), so a message is only accepted
- * from the embedding window — or from this window itself, whose origin is
- * already trusted and whose code can reach the view directly anyway.
+ * Binds the protocol to the one window that embeds this view. A trusted origin
+ * alone is not enough: sibling frames and popups served from the client's own
+ * origin can hold this frame's WindowProxy and post to it (this product opens
+ * OAuth popups on exactly that origin).
  *
- * `e.source` is absent for a sender that has since closed and for some relay
- * arrangements; enforcing it only when the browser supplies one keeps hosts
- * that legitimately relay working, while closing the vector for every live
- * window. Tighten this to a strict equality check if no host relays.
+ * Strict equality, with no exception for an absent `source`. That exception
+ * used to exist for hosts that relay; no host does, and it was the wider hole
+ * of the two — `MessageEvent.source` is null for anything that is not a
+ * window, so a service worker, MessagePort or BroadcastChannel on this
+ * origin could otherwise drive the whole inbound protocol.
+ *
+ * A view that is not embedded still works: `parent === window` there, so the
+ * expected source is this window and a self-post is accepted.
  */
-export function isTrustedSource(expectedSource, source, win = window) {
-  if (!source) {
-    return true;
-  }
-  return source === expectedSource || source === win;
+export function isTrustedSource(expectedSource, source) {
+  return source === expectedSource;
 }
 
 /**
@@ -176,8 +176,6 @@ export function resolveDispatchTarget(target, method, blockedMethods) {
 /**
  * Local functions
  */
-let warnedLegacyFallback = false;
-
 function ownOrigin(win) {
   try {
     return normalizeOrigin(win.location && win.location.origin);
@@ -221,16 +219,6 @@ function embeddingOrigin(win, own) {
     return null;
   }
   return referrerOrigin;
-}
-
-function withOwnOrigin(origins, own) {
-  // The page's own origin is always part of its trust domain: same-origin
-  // code can reach into the window directly anyway, and the legacy
-  // iframe-controller architecture relays messages from a same-origin window.
-  if (own && origins.indexOf(own) === -1) {
-    return origins.concat(own);
-  }
-  return origins;
 }
 
 function isEmbedded(win) {

@@ -17,7 +17,11 @@ import {
 export interface UseSiftViewProps {
   /** Called when the client sends `willPresentView`. Always the latest one. */
   willPresentView?: (params: PresentViewParams) => void;
-  /** See `SiftViewOptions.clientOrigin` — same rules. */
+  /**
+   * See `SiftViewOptions.clientOrigin` — same rules, including that an
+   * unresolvable origin throws. From a hook that surfaces through the nearest
+   * React error boundary.
+   */
   clientOrigin?: string | string[];
 }
 

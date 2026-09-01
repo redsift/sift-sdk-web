@@ -54,9 +54,9 @@ async function main() {
   });
   assert.ok(view instanceof SiftView, 'createSiftView returns a SiftView');
   assert.deepStrictEqual(
-    view._trustedOrigins.slice().sort(),
-    ['https://app.redsift.com', 'https://dmarc.sift.example'],
-    'trusts referrer origin + own origin'
+    view._trustedOrigins,
+    ['https://app.redsift.com'],
+    'trusts exactly the client origin, not our own as well'
   );
   assert.strictEqual(
     view._targetOrigin,
@@ -126,16 +126,33 @@ async function main() {
     'trusted origin from a non-embedding window is ignored'
   );
 
-  // a sender with no source (closed window, some relays) still dispatches
+  // `MessageEvent.source` is null for anything that is not a window, so a
+  // service worker, MessagePort or BroadcastChannel on this very origin could
+  // otherwise drive the whole inbound protocol
+  presented = null;
   deliver(
     'https://app.redsift.com',
     { method: 'presentView', params: { noSource: true } },
     null
   );
-  assert.deepStrictEqual(
+  assert.strictEqual(
     presented,
-    { noSource: true },
-    'message without a source still dispatches'
+    null,
+    'a message with no source (service worker, MessagePort) is ignored'
+  );
+
+  // the window itself is not a special case either — only the window this
+  // view actually talks to
+  presented = null;
+  deliver(
+    'https://app.redsift.com',
+    { method: 'presentView', params: { self: true } },
+    fakeWindow
+  );
+  assert.strictEqual(
+    presented,
+    null,
+    'a self-posted message is ignored while embedded'
   );
 
   // ---- malformed payloads don't throw --------------------------------------
@@ -438,16 +455,14 @@ async function main() {
   // ---- origin policy edge cases ---------------------------------------------
   // An opaque referrer (file:, data:, sandboxed document) serializes its
   // origin as the literal "null"; trusting that would trust every opaque
-  // context alike, so the policy must fall back to the legacy behaviour
+  // context alike. With nothing else to go on the policy now refuses to
+  // resolve rather than accepting and posting to any origin.
   fakeWindow.document.referrer = 'file:///tmp/sift.html';
-  const opaqueView = createSiftView({});
-  assert.strictEqual(
-    opaqueView._trustedOrigins,
-    null,
-    'opaque referrer is not trusted as an origin'
+  assert.throws(
+    () => createSiftView({}),
+    /Could not determine the client origin/,
+    'an opaque referrer fails closed instead of falling back to any origin'
   );
-  assert.strictEqual(opaqueView._targetOrigin, '*');
-  opaqueView.destroy();
   fakeWindow.document.referrer = 'https://app.redsift.com/home/abc';
 
   // An in-frame navigation makes document.referrer point at the *previous
@@ -456,18 +471,20 @@ async function main() {
   // the browser drop every outbound one, so it must be discarded as stale and
   // the channel kept alive under the legacy policy.
   fakeWindow.document.referrer = 'https://dmarc.sift.example/previous-page';
-  const staleReferrerView = createSiftView({});
+  assert.throws(
+    () => createSiftView({}),
+    /Could not determine the client origin/,
+    'a self-referrer is not mistaken for the client, and fails closed'
+  );
+  // ...and the escape hatch is what keeps such a deployment working
+  const optedOut = createSiftView({}, { clientOrigin: '*' });
   assert.strictEqual(
-    staleReferrerView._trustedOrigins,
+    optedOut._trustedOrigins,
     null,
-    'a self-referrer from an in-frame navigation is not mistaken for the client'
+    "clientOrigin '*' still opts out of pinning entirely"
   );
-  assert.strictEqual(
-    staleReferrerView._targetOrigin,
-    '*',
-    'stale referrer falls back to the legacy policy instead of a dead channel'
-  );
-  staleReferrerView.destroy();
+  assert.strictEqual(optedOut._targetOrigin, '*');
+  optedOut.destroy();
 
   // Where location.ancestorOrigins exists (Chromium, WebKit) it is
   // authoritative and survives that same in-frame navigation
@@ -479,9 +496,9 @@ async function main() {
     'ancestorOrigins identifies the client despite a stale referrer'
   );
   assert.deepStrictEqual(
-    ancestorView._trustedOrigins.slice().sort(),
-    ['https://app.redsift.com', 'https://dmarc.sift.example'],
-    'ancestorOrigins client plus own origin are trusted'
+    ancestorView._trustedOrigins,
+    ['https://app.redsift.com'],
+    'ancestorOrigins identifies exactly the client to trust'
   );
   ancestorView.destroy();
   delete fakeWindow.location.ancestorOrigins;
@@ -534,6 +551,78 @@ async function main() {
     'all allowed origins stay trusted for inbound'
   );
   multiView.destroy();
+
+  // ---- a view that is not embedded (standalone development) ----------------
+  // `parent === window` there, so the window this view talks to is itself:
+  // strict source equality must still accept its own posts, and the policy
+  // must resolve to its own origin rather than failing closed.
+  const selfPosts = [];
+  fakeWindow.postMessage = (msg, targetOrigin) =>
+    selfPosts.push({ msg, targetOrigin });
+  fakeWindow.parent = fakeWindow;
+  globalThis.parent = fakeWindow;
+
+  let standalonePresented = null;
+  const standaloneView = createSiftView({
+    presentView(p) {
+      standalonePresented = p;
+    },
+  });
+  assert.deepStrictEqual(
+    standaloneView._trustedOrigins,
+    ['https://dmarc.sift.example'],
+    'not embedded: trusts its own origin'
+  );
+  assert.strictEqual(
+    standaloneView._targetOrigin,
+    'https://dmarc.sift.example',
+    'not embedded: outbound pinned to its own origin, never "*"'
+  );
+  deliver(
+    'https://dmarc.sift.example',
+    { method: 'presentView', params: { standalone: true } },
+    fakeWindow
+  );
+  assert.deepStrictEqual(
+    standalonePresented,
+    { standalone: true },
+    'not embedded: a self-posted client message still dispatches'
+  );
+  standaloneView.destroy();
+  fakeWindow.parent = fakeParent;
+  globalThis.parent = fakeParent;
+  delete fakeWindow.postMessage;
+
+  // ---- plugins receive only what they need ---------------------------------
+  // The context handed to a plugin used to be the whole view. Both bundled
+  // plugins only ever call `notifyClient`, so that is all they now get.
+  const contextView = createSiftView({});
+  let pluginContext = null;
+  contextView._pluginManager._pluginFactory = [
+    class Probe {
+      static id = () => 'probe';
+      static contexts = () => ['view'];
+      init = ({ context }) => {
+        pluginContext = context;
+        return true;
+      };
+    },
+  ];
+  contextView._initPlugins({ pluginConfigs: [{ id: 'probe' }] });
+  assert.deepStrictEqual(
+    Object.keys(pluginContext),
+    ['notifyClient'],
+    'a plugin receives only notifyClient, not the whole view'
+  );
+  // and it is the pinned one, not a raw postMessage
+  pluginContext.notifyClient('probe-topic', { via: 'plugin' });
+  assert.strictEqual(
+    last(sent).targetOrigin,
+    'https://app.redsift.com',
+    "the plugin's notifyClient is pinned like the view's"
+  );
+  assert.strictEqual(last(sent).msg.params.topic, 'probe-topic');
+  contextView.destroy();
 
   // ---- SiftController in a fake worker scope --------------------------------
   const workerPosts = [];
