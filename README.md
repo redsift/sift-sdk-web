@@ -606,6 +606,17 @@ same implementation underneath, so they cannot disagree about any of it.
 
 ## Development
 
+Developing this package needs a newer Node than using it does: eslint 10
+requires `^20.19.0 || ^22.13.0 || >=24`. That is declared in
+`devEngines.runtime`, so **npm ≥ 10.9** warns on a version that will not work —
+earlier npm ignores the field, which is why `devEngines.packageManager` asks
+for npm ≥ 10.9 as well.
+
+The `engines` floor stays at Node 18.18 and npm 9, because that is the
+_consumer_ contract: nothing in the published bundles needs more, and a
+consumer never installs eslint. Raising it would warn people whose setup is
+fine.
+
 ```sh
 npm ci
 npm run lint        # eslint (flat config)
