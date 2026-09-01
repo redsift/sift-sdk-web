@@ -32,12 +32,4 @@ export default [
       globals: { ...globals.node },
     },
   },
-  {
-    files: ['react.js'],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'commonjs',
-      globals: { ...globals.node },
-    },
-  },
 ];

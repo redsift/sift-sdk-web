@@ -35,7 +35,7 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
-    "@babel/runtime": "^7.9.6",
+    "@babel/runtime": "^7.29.7",
     "@redsift/observable": "^4.0.5",
     "@redsift/rs-storage": "^4.0.5",
     "js-sha256": "^0.9.0"
