@@ -153,13 +153,14 @@ export class SiftStorage implements Observable {
   publish(topic: string | string[], message?: unknown): void;
 }
 
-export class EmailClient implements Observable {
+/**
+ * Reachable as {@link SiftController.emailclient}. Declared as an interface,
+ * not a class: the package exports no `EmailClient` constructor, so a `class`
+ * here would let `import { EmailClient }` typecheck and then fail to link.
+ */
+export interface EmailClient extends Observable {
   goto(params?: unknown): void;
   close(): void;
-  subscribe(topic: string | string[], observer: (message: unknown) => void): void;
-  unsubscribe(topic: string | string[], observer: (message: unknown) => void): void;
-  unsubscribeAll(topic: string): void;
-  publish(topic: string | string[], message?: unknown): void;
 }
 
 /**

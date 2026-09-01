@@ -23,13 +23,16 @@ jobs:
           name: Lint
           command: npm run lint
       # The published type declarations are hand-written, so they can drift
-      # from the JS. test/types/ exercises the public surface, and this
-      # step is what makes that drift a build failure.
+      # from the JS. test/types/ exercises the public surface — imported by
+      # package name, so the "exports" map's types conditions are covered too
+      # — and this step makes a loosened or broken declaration a build
+      # failure. The other direction, a declaration with no runtime
+      # counterpart, is caught by test/export-parity.mjs in the step below.
       - run:
           name: Typecheck
           command: npm run typecheck
       - run:
-          name: Build and run the smoke test
+          name: Build, then run the smoke and export-parity tests
           command: npm test
 
   publish:

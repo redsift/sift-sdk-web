@@ -140,16 +140,20 @@ document.querySelector('#login').onclick = () =>
 ### The view (React)
 
 ```jsx
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSiftView } from '@redsift/sift-sdk-web/react';
 
 export default function App() {
   const [params, siftView] = useSiftView({
     clientOrigin: 'https://app.redsift.io',
   });
+  const [changed, setChanged] = useState(null);
 
   useEffect(() => {
-    const onChange = () => siftView.publish('refresh');
+    // Handle the controller's message locally. Answering it with a `publish`
+    // back to the controller would loop forever: the controller's `refresh`
+    // handler publishes `data-changed`, which arrives here again.
+    const onChange = (message) => setChanged(message);
     siftView.controller.subscribe('data-changed', onChange);
     return () => siftView.controller.unsubscribe('data-changed', onChange);
   }, [siftView]);
@@ -160,6 +164,9 @@ export default function App() {
   return (
     <Dashboard
       data={params.data}
+      changed={changed}
+      // A user action is a fresh cause, so this one is safe to publish
+      onRefresh={() => siftView.publish('refresh')}
       onLogin={() => siftView.login({ redirectUri: '/' })}
     />
   );
@@ -283,6 +290,11 @@ Each half **publishes on its own object** and **subscribes to the other half's**
 | ---------- | ---------------------------------- | -------------------------------------- |
 | view       | `view.publish(topic, value)`       | `view.controller.subscribe(topic, fn)` |
 | controller | `controller.publish(topic, value)` | `controller.view.subscribe(topic, fn)` |
+
+Nothing de-duplicates this channel, so do not answer a message from the other
+half with a message back to it — the two handlers will publish at each other
+indefinitely. Handle what arrives locally, and publish only on a fresh cause: a
+user action, a storage change, a request from the client.
 
 ## API reference
 
