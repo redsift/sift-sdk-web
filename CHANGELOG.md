@@ -68,10 +68,23 @@ defined`.
   unsubscribes when stopped.
 - `track-ui-activity` throttles to one message every 5 seconds and removes all
   its listeners on stop, including the capture-phase `scroll`.
-- Toolchain: Rollup 4, ESLint 9 flat config, Prettier 3, husky 9, Babel 7
+- Toolchain: Rollup 4, ESLint 10 flat config, Prettier 3, husky 9, Babel 7
   current, pinned `cimg/node` in CI with lint, typecheck and test gates, and
   tag-driven publishing that verifies the tag matches `package.json`.
+- `js-sha256` moved to 1.0.0, which keeps its `eval("require('crypto')")` Node
+  branch behind the `node` export condition. That eval used to be inlined into
+  both bundles: it produced a Rollup warning on every build and made
+  `dist/sift-sdk-web.mjs` impossible to import in plain Node. Digests are
+  unchanged, so the `subject` that `showOAuthPopup` derives from an email is
+  byte-identical.
+- `eslint-plugin-react` is gone, which is what allows ESLint 10. Its latest
+  release supports eslint `^9.7` at most, and every rule it contributed needs
+  JSX, a class component or ReactDOM — none of which exist here. `react-hooks`
+  stays; it supports eslint `^10` and is the plugin that has caught real bugs.
+  `@eslint/js` is now an explicit devDependency rather than one relied on
+  transitively through eslint.
 - `npm audit` reports no vulnerabilities, down from 17 (1 critical, 9 high).
+  The dev tree is 302 packages, down from 424.
 
 ## 2.0.3 and earlier
 
