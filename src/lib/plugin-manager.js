@@ -4,7 +4,10 @@ export default class PluginManager {
   _pluginFactory = SiftPlugins;
   _activePlugins = [];
 
-  init = ({ pluginConfigs = [], contextType, context, global }) => {
+  init = ({ pluginConfigs = [], contextType, context, global } = {}) => {
+    if (!Array.isArray(pluginConfigs)) {
+      return;
+    }
     pluginConfigs.forEach((pluginConfig) => {
       if (!pluginConfig || typeof pluginConfig !== 'object') {
         return;

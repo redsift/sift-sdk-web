@@ -46,8 +46,14 @@ export default class SyncHistory {
         console.warn('[SyncHistory::onNavigation] invalid location:', location);
         return;
       }
-      const op =
-        NAVIGATION_ACTIONS[String(action || 'push').toLowerCase()] || 'push';
+      const op = NAVIGATION_ACTIONS[String(action || 'push').toLowerCase()];
+      if (!op) {
+        console.warn(
+          '[SyncHistory::onNavigation] unsupported navigation action:',
+          action
+        );
+        return;
+      }
       if (typeof history[op] !== 'function') {
         console.warn(
           `[SyncHistory::onNavigation] history does not implement "${op}"`

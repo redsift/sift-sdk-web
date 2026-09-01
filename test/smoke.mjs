@@ -102,6 +102,25 @@ async function main() {
   deliver('https://app.redsift.com', { method: 'hasOwnProperty', params: {} });
   deliver('https://app.redsift.com', { method: 'toString', params: {} });
 
+  // ---- lifecycle methods not dispatchable -----------------------------------
+  // 'destroy' must not be reachable via postMessage: the listener stays active
+  deliver('https://app.redsift.com', { method: 'destroy' });
+  presented = null;
+  deliver('https://app.redsift.com', {
+    method: 'presentView',
+    params: { still: 'alive' },
+  });
+  assert.deepStrictEqual(
+    presented,
+    { still: 'alive' },
+    'destroy is not message-dispatchable'
+  );
+
+  // ---- handlers tolerate missing params -------------------------------------
+  deliver('https://app.redsift.com', { method: '_initPlugins' }); // no params
+  deliver('https://app.redsift.com', { method: '_receivePluginMessages' });
+  deliver('https://app.redsift.com', { method: 'login' }); // destructuring must not throw
+
   // ---- notifyView routes to controller observable --------------------------
   let received = null;
   view.controller.subscribe('t1', (v) => (received = v));
@@ -134,6 +153,20 @@ async function main() {
     replace: (p) => historyCalls.push(['replace', p]),
   };
   view.setupSyncHistory({ history: fakeHistory });
+
+  // an unknown navigation action is ignored, not treated as push
+  deliver('https://app.redsift.com', {
+    method: '_receivePluginMessages',
+    params: {
+      messages: [
+        {
+          id: 'sync-history',
+          data: { action: 'PUSHH', location: { pathname: '/x', search: '' } },
+        },
+      ],
+    },
+  });
+  assert.strictEqual(historyCalls.length, 0, 'unknown action ignored');
 
   // client -> view POP is mirrored as replace (previously crashed: history.pop)
   deliver('https://app.redsift.com', {
@@ -257,6 +290,48 @@ async function main() {
   workerDeliver(null);
   workerDeliver({ method: 7 });
   workerDeliver({ method: 'proxy' }); // '_proxy' is not a function
+
+  // internal machinery is not message-dispatchable: 'registerMessageListeners'
+  // must not install a second listener, and parameterless protocol messages
+  // must be ignored rather than crash the handler
+  makeFakeWorkerScope();
+  createSiftController({
+    loadView() {
+      return { html: 'index.html' };
+    },
+  });
+  assert.strictEqual(workerListeners.length, 1);
+  workerDeliver({ method: 'registerMessageListeners' });
+  assert.strictEqual(
+    workerListeners.length,
+    1,
+    'registerMessageListeners is not message-dispatchable'
+  );
+  const postsBefore = workerPosts.length;
+  workerDeliver({ method: 'loadView' }); // no params
+  workerDeliver({ method: 'init' }); // no params
+  workerDeliver({ method: 'triggerSiftViewInit', params: {} });
+  workerDeliver({ method: 'triggerSiftViewFailed', params: {} });
+  assert.strictEqual(
+    workerPosts.length,
+    postsBefore,
+    'malformed/internal controller messages are ignored'
+  );
+
+  // ---- EmailClientController guards ------------------------------------------
+  const { createEmailClientController } = sdk;
+  makeFakeWorkerScope();
+  createEmailClientController({});
+  assert.strictEqual(workerListeners.length, 1);
+  workerDeliver({ method: 'registerMessageListeners' });
+  assert.strictEqual(
+    workerListeners.length,
+    1,
+    'email controller listener registration is not message-dispatchable'
+  );
+  workerDeliver({ method: 'emailStats' }); // no params: must not throw
+  workerDeliver({ method: 'getThreadRowDisplayInfo' }); // no params: must not throw
+  workerDeliver({ method: 'getThreadRowDisplayInfo', params: { tris: null } });
 
   console.log('All smoke tests passed.');
 }

@@ -4,6 +4,16 @@ import Observable from '@redsift/observable';
 import SiftStorage from './sift-storage';
 import { Storage } from '@redsift/rs-storage';
 
+// Internal machinery that must never be invokable through an inbound
+// worker message ('registerMessageListeners' would otherwise install a
+// duplicate listener per message, 'triggerSiftViewInit'/'...Failed' are
+// outbound-only helpers)
+const NON_DISPATCHABLE_HANDLERS = [
+  '_registerMessageListeners',
+  '_triggerSiftViewInit',
+  '_triggerSiftViewFailed',
+];
+
 export default class SiftController {
   constructor() {
     this._proxy = self;
@@ -13,7 +23,7 @@ export default class SiftController {
     this._pluginManager = new PluginManager();
   }
 
-  _initPlugins = ({ pluginConfigs }) => {
+  _initPlugins = ({ pluginConfigs } = {}) => {
     this._pluginManager.init({
       pluginConfigs,
       contextType: 'controller',
@@ -22,7 +32,7 @@ export default class SiftController {
     });
   };
 
-  _startPlugins = ({ pluginConfigs }) => {
+  _startPlugins = ({ pluginConfigs } = {}) => {
     this._pluginManager.start({
       pluginConfigs,
       contextType: 'controller',
@@ -31,7 +41,7 @@ export default class SiftController {
     });
   };
 
-  _stopPlugins = ({ pluginConfigs }) => {
+  _stopPlugins = ({ pluginConfigs } = {}) => {
     this._pluginManager.stop({
       pluginConfigs,
       contextType: 'controller',
@@ -63,7 +73,10 @@ export default class SiftController {
       ) {
         return;
       }
-      const handler = this['_' + data.method];
+      const handlerName = '_' + data.method;
+      const handler = NON_DISPATCHABLE_HANDLERS.includes(handlerName)
+        ? null
+        : this[handlerName];
       if (typeof handler === 'function') {
         handler.call(this, data.params);
       } else {
@@ -77,6 +90,10 @@ export default class SiftController {
 
   _init(params) {
     // console.log('[SiftController::_init]: ', params);
+    if (!params || typeof params !== 'object') {
+      console.warn('[SiftController::_init]: invalid init params');
+      return;
+    }
     this.storage = new SiftStorage();
     this.storage.init(
       new Storage({
@@ -132,6 +149,10 @@ export default class SiftController {
 
   _loadView(params) {
     // console.log('[SiftController::_loadView]: ', params);
+    if (!params || typeof params !== 'object') {
+      console.warn('[SiftController::_loadView]: invalid loadView params');
+      return;
+    }
     if (!this.loadView) {
       console.error(
         '[SiftController::_loadView]: Sift controller must implement the loadView method'

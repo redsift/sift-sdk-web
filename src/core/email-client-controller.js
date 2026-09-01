@@ -1,3 +1,8 @@
+// Internal machinery that must never be invokable through an inbound
+// worker message ('registerMessageListeners' would otherwise install a
+// duplicate listener per message)
+const NON_DISPATCHABLE_HANDLERS = ['_registerMessageListeners'];
+
 export default class EmailClientController {
   constructor() {
     this._proxy = self;
@@ -17,7 +22,10 @@ export default class EmailClientController {
       ) {
         return;
       }
-      const handler = this['_' + data.method];
+      const handlerName = '_' + data.method;
+      const handler = NON_DISPATCHABLE_HANDLERS.includes(handlerName)
+        ? null
+        : this[handlerName];
       if (typeof handler === 'function') {
         handler.call(this, data.params);
       }
@@ -27,6 +35,9 @@ export default class EmailClientController {
   }
 
   _emailStats(stats) {
+    if (!stats || typeof stats !== 'object') {
+      return;
+    }
     if (this.onstats) {
       this.onstats(stats.name, stats.value);
     }
@@ -34,6 +45,9 @@ export default class EmailClientController {
 
   _getThreadRowDisplayInfo(params) {
     // console.log('[EmailClientController::_getThreadRowDisplayInfo]: ', params);
+    if (!params || !Array.isArray(params.tris)) {
+      return;
+    }
     var trdis = {};
     params.tris.forEach((thread) => {
       if (

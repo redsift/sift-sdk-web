@@ -46,7 +46,7 @@ const useSiftView = (props = {}) => {
       proxy,
       controller,
       pluginManager,
-      _initPlugins: ({ pluginConfigs }) => {
+      _initPlugins: ({ pluginConfigs } = {}) => {
         pluginManager.init({
           pluginConfigs,
           contextType: 'view',
@@ -54,7 +54,7 @@ const useSiftView = (props = {}) => {
           global: window,
         });
       },
-      _startPlugins: ({ pluginConfigs }) => {
+      _startPlugins: ({ pluginConfigs } = {}) => {
         pluginManager.start({
           pluginConfigs,
           contextType: 'view',
@@ -62,7 +62,7 @@ const useSiftView = (props = {}) => {
           global: window,
         });
       },
-      _stopPlugins: ({ pluginConfigs }) => {
+      _stopPlugins: ({ pluginConfigs } = {}) => {
         pluginManager.stop({
           pluginConfigs,
           contextType: 'view',
@@ -70,7 +70,14 @@ const useSiftView = (props = {}) => {
           global: window,
         });
       },
-      _receivePluginMessages: ({ messages }) => {
+      _receivePluginMessages: (messageParams) => {
+        const messages = messageParams && messageParams.messages;
+        if (!Array.isArray(messages)) {
+          console.warn(
+            '[SiftView::_receivePluginMessages]: expected an array of messages'
+          );
+          return;
+        }
         pluginManager.onMessages({ messages });
       },
       getPlugin,
@@ -81,28 +88,34 @@ const useSiftView = (props = {}) => {
         );
       },
       notifyClient,
-      showOAuthPopup: ({ provider, options = null }) => {
+      showOAuthPopup: ({ provider, options = null } = {}) => {
         notifyClient('showOAuthPopup', {
           provider,
           options: withHashedEmailSubject(options),
         });
       },
-      removeOAuthIdentity: ({ provider, options = null }) => {
+      removeOAuthIdentity: ({ provider, options = null } = {}) => {
         notifyClient('showOAuthRemovePopup', { provider, options });
       },
       signup: () => {
         notifyClient('signup');
       },
-      login: ({ redirectUri }) => {
+      login: ({ redirectUri } = {}) => {
         notifyClient('login', { redirectUri });
       },
       logout: () => {
         notifyClient('logout');
       },
-      navigate: ({ href, openInNewTab = false }) => {
+      navigate: ({ href, openInNewTab = false } = {}) => {
         notifyClient('navigate', { href, openInNewTab });
       },
-      setupSyncHistory: ({ history, initialPath }) => {
+      setupSyncHistory: ({ history, initialPath } = {}) => {
+        if (!history) {
+          console.error(
+            '[SiftSdkWeb] `setupSyncHistory` requires a history object'
+          );
+          return;
+        }
         const syncHistoryPlugin = getPlugin({ id: 'sync-history' });
         if (syncHistoryPlugin) {
           syncHistoryPlugin.setup({ history, initialPath });

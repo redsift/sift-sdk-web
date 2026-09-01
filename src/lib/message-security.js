@@ -61,11 +61,14 @@ export function resolveMessagePolicy({ clientOrigin, win = window } = {}) {
     return { trustedOrigins: [own], targetOrigin: own };
   }
 
-  console.warn(
-    '[SiftSdkWeb] Could not determine the client origin (no clientOrigin option and no document.referrer). ' +
-      'Falling back to the legacy behaviour of accepting and posting messages to any origin; ' +
-      'pass { clientOrigin } to lock this down.'
-  );
+  if (!warnedLegacyFallback) {
+    warnedLegacyFallback = true;
+    console.warn(
+      '[SiftSdkWeb] Could not determine the client origin (no clientOrigin option and no document.referrer). ' +
+        'Falling back to the legacy behaviour of accepting and posting messages to any origin; ' +
+        'pass { clientOrigin } to lock this down.'
+    );
+  }
   return { trustedOrigins: null, targetOrigin: '*' };
 }
 
@@ -77,10 +80,15 @@ export function isTrustedOrigin(trustedOrigins, origin) {
  * Resolves an inbound message method name to a callable on `target`.
  * Only functions defined by the SDK or the sift itself are callable —
  * never values inherited from Object.prototype (`constructor`,
- * `hasOwnProperty`, ...) and never non-function properties.
+ * `hasOwnProperty`, ...), never non-function properties, and never
+ * methods named in `blockedMethods` (internal lifecycle/dispatch
+ * machinery that is not part of the message protocol).
  */
-export function resolveDispatchTarget(target, method) {
+export function resolveDispatchTarget(target, method, blockedMethods) {
   if (typeof method !== 'string' || method === 'constructor') {
+    return null;
+  }
+  if (blockedMethods && blockedMethods.indexOf(method) !== -1) {
     return null;
   }
   const fn = target[method];
@@ -93,6 +101,8 @@ export function resolveDispatchTarget(target, method) {
 /**
  * Local functions
  */
+let warnedLegacyFallback = false;
+
 function ownOrigin(win) {
   try {
     return (win.location && win.location.origin) || null;

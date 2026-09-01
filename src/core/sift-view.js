@@ -7,6 +7,14 @@ import {
 } from '../lib/message-security';
 import { withHashedEmailSubject } from '../lib/oauth-options';
 
+// Internal lifecycle/dispatch machinery that must never be invokable
+// through an inbound postMessage, even from a trusted origin
+const NON_DISPATCHABLE_METHODS = [
+  'destroy',
+  '_onWindowMessage',
+  '_registerMessageListeners',
+];
+
 export default class SiftView {
   constructor({ clientOrigin } = {}) {
     this._resizeHandler = null;
@@ -26,7 +34,7 @@ export default class SiftView {
   // Plugin management
   // --------------------------------------------------------------------------
 
-  _initPlugins = ({ pluginConfigs }) => {
+  _initPlugins = ({ pluginConfigs } = {}) => {
     this._pluginManager.init({
       pluginConfigs,
       contextType: 'view',
@@ -35,7 +43,7 @@ export default class SiftView {
     });
   };
 
-  _startPlugins = ({ pluginConfigs }) => {
+  _startPlugins = ({ pluginConfigs } = {}) => {
     this._pluginManager.start({
       pluginConfigs,
       contextType: 'view',
@@ -44,7 +52,7 @@ export default class SiftView {
     });
   };
 
-  _stopPlugins = ({ pluginConfigs }) => {
+  _stopPlugins = ({ pluginConfigs } = {}) => {
     this._pluginManager.stop({
       pluginConfigs,
       contextType: 'view',
@@ -53,7 +61,14 @@ export default class SiftView {
     });
   };
 
-  _receivePluginMessages({ messages }) {
+  _receivePluginMessages(params) {
+    const messages = params && params.messages;
+    if (!Array.isArray(messages)) {
+      console.warn(
+        '[SiftView::_receivePluginMessages]: expected an array of messages'
+      );
+      return;
+    }
     this._pluginManager.onMessages({ messages });
   }
 
@@ -115,7 +130,7 @@ export default class SiftView {
       }
       return;
     }
-    const fn = resolveDispatchTarget(this, method);
+    const fn = resolveDispatchTarget(this, method, NON_DISPATCHABLE_METHODS);
     if (fn) {
       fn.call(this, params);
     } else {
@@ -133,13 +148,13 @@ export default class SiftView {
   // Message channel to Cloud
   // --------------------------------------------------------------------------
 
-  showOAuthPopup({ provider, options = null }) {
+  showOAuthPopup({ provider, options = null } = {}) {
     const topic = 'showOAuthPopup';
     const value = { provider, options: withHashedEmailSubject(options) };
     this.notifyClient(topic, value);
   }
 
-  removeOAuthIdentity({ provider, options = null }) {
+  removeOAuthIdentity({ provider, options = null } = {}) {
     const topic = 'showOAuthRemovePopup';
     const value = { provider, options };
 
@@ -153,7 +168,7 @@ export default class SiftView {
     this.notifyClient(topic, value);
   }
 
-  login({ redirectUri }) {
+  login({ redirectUri } = {}) {
     const topic = 'login';
     const value = { redirectUri };
 
@@ -167,14 +182,20 @@ export default class SiftView {
     this.notifyClient(topic, value);
   }
 
-  navigate({ href, openInNewTab = false }) {
+  navigate({ href, openInNewTab = false } = {}) {
     const topic = 'navigate';
     const value = { href, openInNewTab };
 
     this.notifyClient(topic, value);
   }
 
-  setupSyncHistory({ history, initialPath }) {
+  setupSyncHistory({ history, initialPath } = {}) {
+    if (!history) {
+      console.error(
+        '[SiftSdkWeb] `setupSyncHistory` requires a history object'
+      );
+      return;
+    }
     const syncHistoryPlugin = this.getPlugin({ id: 'sync-history' });
 
     if (syncHistoryPlugin) {
