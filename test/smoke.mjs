@@ -614,7 +614,10 @@ async function main() {
     'data callback after promise resolves'
   );
 
-  // a rejected data promise is reported instead of leaving the view waiting
+  // a rejected data promise is reported instead of leaving the view waiting.
+  // The html still goes out first, so the client can already have loaded the
+  // view by the time the failure arrives — the README documents that, and
+  // this pins the ordering it describes.
   makeFakeWorkerScope();
   createSiftController({
     loadView() {
@@ -626,8 +629,54 @@ async function main() {
     params: { type: 'summary', sizeClass: 'full' },
   });
   await new Promise((r) => setTimeout(r, 0));
-  assert.strictEqual(last(workerPosts).method, 'loadViewFailedCallback');
+  assert.deepStrictEqual(
+    workerPosts.map((m) => m.method),
+    ['loadViewCallback', 'loadViewFailedCallback'],
+    'html is delivered before the rejection is reported'
+  );
+  assert.deepStrictEqual(workerPosts[0].params.result, { html: 'index.html' });
   assert.strictEqual(last(workerPosts).params.error.message, 'boom');
+
+  // ...whereas with no html to send first, nothing precedes the failure, so
+  // no view is loaded at all
+  makeFakeWorkerScope();
+  createSiftController({
+    loadView() {
+      return { data: Promise.reject(new Error('boom')) };
+    },
+  });
+  workerDeliver({
+    method: 'loadView',
+    params: { type: 'summary', sizeClass: 'full' },
+  });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepStrictEqual(
+    workerPosts.map((m) => m.method),
+    ['loadViewFailedCallback'],
+    'without html the failure is the only message'
+  );
+
+  // `loadView` is re-entrant: a host re-sends it when the size class or view
+  // type changes, and the SDK relays every one. The README's quick start
+  // guards its one-time setup because of this.
+  makeFakeWorkerScope();
+  let loadViewCalls = 0;
+  createSiftController({
+    loadView() {
+      loadViewCalls += 1;
+      return { html: 'index.html', data: { rows: loadViewCalls } };
+    },
+  });
+  workerDeliver({
+    method: 'loadView',
+    params: { type: 'summary', sizeClass: 'full' },
+  });
+  workerDeliver({
+    method: 'loadView',
+    params: { type: 'summary', sizeClass: 'compact' },
+  });
+  assert.strictEqual(loadViewCalls, 2, 'every loadView reaches the sift');
+  assert.strictEqual(last(workerPosts).params.sizeClass, 'compact');
 
   // malformed worker messages must not throw
   workerDeliver(null);
