@@ -4,20 +4,30 @@
 // it renders the hook for real and compares what it exposes, and what it
 // puts on the wire, against the class.
 //
-// The render is server-side, so `useState`, `useMemo` and `useRef` run but
-// `useEffect` does not — this covers the surface and the origin policy, not
-// the message listener, which test/smoke.mjs exercises through the class.
+// Two renders, because they cover different halves. A server-side render runs
+// `useState`/`useMemo`/`useRef` but not effects, which is enough to compare the
+// surface and the origin policy against the class. The hook's message listener
+// lives in an effect, though, and it is where the hook's half of the security
+// change sits — so the second half of this file renders through
+// react-test-renderer, where effects do run, and drives real messages at it.
 import assert from 'assert';
 
 const sent = [];
 const fakeParent = {
   postMessage: (msg, targetOrigin) => sent.push({ msg, targetOrigin }),
 };
+const windowListeners = [];
 const fakeWindow = {
   // keep the bundled js-sha256 on its pure-JS path (no Node require())
   JS_SHA256_NO_NODE_JS: true,
-  addEventListener: () => {},
-  removeEventListener: () => {},
+  addEventListener: (type, fn) => windowListeners.push({ type, fn }),
+  // really remove, so the unmount assertion below can fail
+  removeEventListener: (type, fn) => {
+    const at = windowListeners.findIndex((l) => l.type === type && l.fn === fn);
+    if (at !== -1) {
+      windowListeners.splice(at, 1);
+    }
+  },
   location: { origin: 'https://dmarc.sift.example' },
   document: { referrer: 'https://app.redsift.com/home/abc' },
   parent: fakeParent,
@@ -136,3 +146,133 @@ assert.throws(
 console.log(
   `Hook and class agree on ${SHARED_MEMBERS.length} members and ${Object.keys(CALLS).length} wire messages.`
 );
+
+// ---------------------------------------------------------------------------
+// The hook's own listener wiring, with effects actually running.
+// ---------------------------------------------------------------------------
+// Everything above holds even if the hook never registered a listener, or
+// registered one with the wrong proxy or dispatch target. This is what would
+// catch that.
+fakeWindow.document.referrer = 'https://app.redsift.com/home/abc';
+windowListeners.length = 0;
+
+const TestRenderer = (await import('react-test-renderer')).default;
+
+let liveParams = null;
+let liveView = null;
+function Listener() {
+  const [params, siftView] = useSiftView({ clientOrigin: CLIENT });
+  liveParams = params;
+  liveView = siftView;
+  return null;
+}
+
+let tree;
+TestRenderer.act(() => {
+  tree = TestRenderer.create(React.createElement(Listener));
+});
+
+assert.deepStrictEqual(
+  windowListeners.map((l) => l.type),
+  ['message'],
+  'mounting the hook registers exactly one message listener'
+);
+
+const deliver = (origin, data, source = fakeParent) =>
+  TestRenderer.act(() => {
+    windowListeners.forEach(
+      ({ type, fn }) => type === 'message' && fn({ origin, data, source })
+    );
+  });
+
+// the happy path: the client's presentView arrives as state
+deliver(CLIENT, { method: 'presentView', params: { rows: 7 } });
+assert.deepStrictEqual(
+  liveParams,
+  { rows: 7 },
+  'a client message from the embedding window becomes state'
+);
+
+// ...and each rejection the class is tested for is rejected here too
+[
+  [
+    'https://evil.example',
+    { method: 'presentView', params: { bad: 'origin' } },
+    fakeParent,
+    'an untrusted origin',
+  ],
+  [
+    CLIENT,
+    { method: 'presentView', params: { bad: 'no source' } },
+    null,
+    'a message with no source',
+  ],
+  [
+    CLIENT,
+    { method: 'presentView', params: { bad: 'self' } },
+    fakeWindow,
+    'a self-posted message',
+  ],
+  [
+    CLIENT,
+    { method: 'presentView', params: { bad: 'rogue' } },
+    { postMessage() {} },
+    'another window on the client origin',
+  ],
+].forEach(([origin, data, source, what]) => {
+  deliver(origin, data, source);
+  assert.deepStrictEqual(
+    liveParams,
+    { rows: 7 },
+    `${what} is ignored by the hook, as by the class`
+  );
+});
+
+// the controller's messages still reach the observable
+let fromController = null;
+liveView.controller.subscribe('data-changed', (message) => {
+  fromController = message;
+});
+deliver(CLIENT, {
+  method: 'notifyView',
+  params: { topic: 'data-changed', value: { n: 1 } },
+});
+assert.deepStrictEqual(
+  fromController,
+  { n: 1 },
+  'notifyView is routed to the controller observable'
+);
+
+// unmount must remove the listener and stop the plugins it started
+let probeStopped = false;
+liveView.pluginManager._pluginFactory = [
+  class Probe {
+    static id = () => 'probe';
+    static contexts = () => ['view'];
+    init = () => true;
+    stop = () => {
+      probeStopped = true;
+    };
+  },
+];
+liveView._initPlugins({ pluginConfigs: [{ id: 'probe' }] });
+assert.strictEqual(
+  liveView.pluginManager.getActivePlugins().length,
+  1,
+  'the probe plugin started'
+);
+
+const beforeUnmount = liveParams;
+TestRenderer.act(() => {
+  tree.unmount();
+});
+assert.deepStrictEqual(windowListeners, [], 'unmount removes the listener');
+assert.strictEqual(probeStopped, true, 'unmount stops the plugins');
+deliver(CLIENT, { method: 'presentView', params: { after: 'unmount' } });
+assert.deepStrictEqual(
+  liveParams,
+  beforeUnmount,
+  'no message is dispatched after unmount'
+);
+
+console.log("The hook's listener registers, filters, routes and cleans up.");
