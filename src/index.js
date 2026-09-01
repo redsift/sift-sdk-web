@@ -16,15 +16,15 @@ export function registerSiftView(siftView) {
   console.log('[Redsift::registerSiftView]: registered');
 }
 
-export function createSiftView(instanceMethods) {
-  return _create(SiftView, instanceMethods);
+export function createSiftView(instanceMethods, options) {
+  return _create(SiftView, instanceMethods, options);
 }
 
 /**
  * SiftController
  */
-export function createSiftController(instanceMethods) {
-  return _create(SiftController, instanceMethods);
+export function createSiftController(instanceMethods, options) {
+  return _create(SiftController, instanceMethods, options);
 }
 
 export function registerSiftController(siftController) {
@@ -34,8 +34,8 @@ export function registerSiftController(siftController) {
 /**
  * EmailClientController
  */
-export function createEmailClientController(instanceMethods) {
-  return _create(EmailClientController, instanceMethods);
+export function createEmailClientController(instanceMethods, options) {
+  return _create(EmailClientController, instanceMethods, options);
 }
 
 export function registerEmailClientController(emailClientController) {
@@ -45,16 +45,16 @@ export function registerEmailClientController(emailClientController) {
 /**
  * Local functions
  */
-function _create(Base, methods) {
-  let Creature = function () {
-    Base.call(this);
-    if (this.init && typeof this.init === 'function') {
-      this.init();
+function _create(Base, methods, options) {
+  class Creature extends Base {
+    constructor() {
+      super(options);
+      if (typeof this.init === 'function') {
+        this.init();
+      }
     }
-  };
-  Creature.prototype = Object.create(Base.prototype);
-  Creature.constructor = Creature;
-  Object.keys(methods).forEach((method) => {
+  }
+  Object.keys(methods || {}).forEach((method) => {
     Creature.prototype[method] = methods[method];
   });
   return new Creature();

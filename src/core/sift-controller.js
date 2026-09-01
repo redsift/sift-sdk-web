@@ -3,42 +3,54 @@ import PluginManager from '../lib/plugin-manager';
 import Observable from '@redsift/observable';
 import SiftStorage from './sift-storage';
 import { Storage } from '@redsift/rs-storage';
+import { resolveDispatchTarget } from '../lib/message-security';
+
+// Internal machinery that must never be invokable through an inbound
+// worker message ('registerMessageListeners' would otherwise install a
+// duplicate listener per message, 'triggerSiftViewInit'/'...Failed' are
+// outbound-only helpers)
+const NON_DISPATCHABLE_HANDLERS = [
+  '_registerMessageListeners',
+  '_triggerSiftViewInit',
+  '_triggerSiftViewFailed',
+];
 
 export default class SiftController {
   constructor() {
     this._proxy = self;
+    this._warnedUnknownMethods = new Set();
     this.view = new Observable();
     this.emailclient = new EmailClient(self);
     this._registerMessageListeners();
     this._pluginManager = new PluginManager();
   }
 
-  _initPlugins = ({ pluginConfigs }) => {
+  _initPlugins = ({ pluginConfigs } = {}) => {
     this._pluginManager.init({
       pluginConfigs,
       contextType: 'controller',
       context: this,
       global: self,
     });
-  }
+  };
 
-  _startPlugins = ({ pluginConfigs }) => {
+  _startPlugins = ({ pluginConfigs } = {}) => {
     this._pluginManager.start({
       pluginConfigs,
       contextType: 'controller',
       context: this,
       global: self,
     });
-  }
+  };
 
-  _stopPlugins = ({ pluginConfigs }) => {
+  _stopPlugins = ({ pluginConfigs } = {}) => {
     this._pluginManager.stop({
       pluginConfigs,
       contextType: 'controller',
       context: this,
       global: self,
     });
-  }
+  };
 
   publish(topic, value) {
     this._proxy.postMessage({
@@ -51,20 +63,47 @@ export default class SiftController {
   }
 
   _registerMessageListeners() {
-    if (!this._proxy) return;
-    this._proxy.onmessage = e => {
-      // console.log('[SiftController::onmessage]: ', e.data);
-      let method = e.data.method;
-      if (this['_' + method]) {
-        this['_' + method](e.data.params);
-      } else {
-        console.log('[SiftController:onmessage]: method not implemented: ', method);
+    if (!this._proxy || !this._proxy.addEventListener) return;
+    // addEventListener instead of assigning onmessage, so the listener does
+    // not clobber (or get clobbered by) other listeners on the worker scope
+    this._proxy.addEventListener('message', (e) => {
+      const data = e.data;
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        typeof data.method !== 'string'
+      ) {
+        return;
       }
-    };
+      // resolveDispatchTarget also rejects functions inherited from
+      // Object.prototype: '_' + '_defineGetter__' would otherwise resolve to
+      // __defineGetter__ and throw out of this listener
+      const handler = resolveDispatchTarget(
+        this,
+        '_' + data.method,
+        NON_DISPATCHABLE_HANDLERS
+      );
+      if (handler) {
+        // Normalize null to undefined so handlers' destructuring defaults apply
+        handler.call(this, data.params == null ? undefined : data.params);
+      } else if (!this._warnedUnknownMethods.has(data.method)) {
+        // Warn once per method: an EmailClientController sharing this worker
+        // scope legitimately receives methods this controller does not know
+        this._warnedUnknownMethods.add(data.method);
+        console.warn(
+          '[SiftController:onmessage]: method not implemented: ',
+          data.method
+        );
+      }
+    });
   }
 
   _init(params) {
     // console.log('[SiftController::_init]: ', params);
+    if (!params || typeof params !== 'object') {
+      console.warn('[SiftController::_init]: invalid init params');
+      return;
+    }
     this.storage = new SiftStorage();
     this.storage.init(
       new Storage({
@@ -103,36 +142,79 @@ export default class SiftController {
     });
   }
 
+  _triggerSiftViewFailed(params, error) {
+    this._proxy.postMessage({
+      method: 'loadViewFailedCallback',
+      params: {
+        user: { guid: this._account },
+        sift: { guid: this._guid },
+        type: params.type,
+        sizeClass: params.sizeClass,
+        error: {
+          message: (error && error.message) || String(error),
+        },
+      },
+    });
+  }
+
   _loadView(params) {
     // console.log('[SiftController::_loadView]: ', params);
-    if (!this.loadView) {
+    if (!params || typeof params !== 'object') {
+      console.warn('[SiftController::_loadView]: invalid loadView params');
+      return;
+    }
+    if (typeof this.loadView !== 'function') {
       console.error(
         '[SiftController::_loadView]: Sift controller must implement the loadView method'
+      );
+      // Tell the view, or it waits for a callback that never comes
+      this._triggerSiftViewFailed(
+        params,
+        new Error('Sift controller does not implement loadView')
       );
       return;
     }
 
     // Invoke loadView method
-    let result = this.loadView({
-      sizeClass: params.sizeClass,
-      type: params.type,
-      params: params.data,
-    });
+    let result;
+    try {
+      result = this.loadView({
+        sizeClass: params.sizeClass,
+        type: params.type,
+        params: params.data,
+      });
+    } catch (error) {
+      console.error('[SiftController::loadView]: threw an exception: ', error);
+      this._triggerSiftViewFailed(params, error);
+      return;
+    }
 
-    // console.log('[SiftController::_loadView] loadView result: ', result);
+    if (!result || typeof result !== 'object') {
+      console.error(
+        '[SiftController::loadView]: must return an object like { html, data }, got: ',
+        result
+      );
+      this._triggerSiftViewFailed(
+        params,
+        new Error('loadView did not return a result')
+      );
+      return;
+    }
+
     if (result.data && 'function' === typeof result.data.then) {
       if (result.html) {
         this._triggerSiftViewInit(params, { html: result.html });
       }
       result.data
-        .then(data => {
+        .then((data) => {
           this._triggerSiftViewInit(params, { html: result.html, data: data });
         })
-        .catch(error => {
+        .catch((error) => {
           console.error(
             '[SiftController::loadView]: promise rejected: ',
             error
           );
+          this._triggerSiftViewFailed(params, error);
         });
     } else {
       this._triggerSiftViewInit(params, result);
@@ -141,9 +223,15 @@ export default class SiftController {
 
   _storageUpdated(params) {
     // console.log('[SiftController::_storageUpdated]: ', params);
+    if (!Array.isArray(params)) {
+      console.warn(
+        '[SiftController::_storageUpdated]: expected an array of buckets'
+      );
+      return;
+    }
     // Notify the * listeners
     this.storage.publish('*', params);
-    params.forEach(b => {
+    params.forEach((b) => {
       // Notify the bucket listeners.
       // TODO: send the list of keys instead of "[b]"
       this.storage.publish(b, [b]);
@@ -152,11 +240,13 @@ export default class SiftController {
 
   _notifyController(params) {
     // console.log('[SiftController::_notifyController]: ', params);
+    if (!params || typeof params !== 'object') return;
     this.view.publish(params.topic, params.value);
   }
 
   _emailComposer(params) {
     // console.log('[SiftController::_emailComposer]: ', params);
+    if (!params || typeof params !== 'object') return;
     this.emailclient.publish(params.topic, params.value);
   }
 }

@@ -1,3 +1,10 @@
+import { resolveDispatchTarget } from '../lib/message-security';
+
+// Internal machinery that must never be invokable through an inbound
+// worker message ('registerMessageListeners' would otherwise install a
+// duplicate listener per message)
+const NON_DISPATCHABLE_HANDLERS = ['_registerMessageListeners'];
+
 export default class EmailClientController {
   constructor() {
     this._proxy = self;
@@ -5,37 +12,67 @@ export default class EmailClientController {
   }
 
   _registerMessageListeners() {
-    if(!this._proxy) return;
-    this._proxy.onmessage = (e) => {
-      // console.log('[SiftController::onmessage]: ', e.data);
-      let method = e.data.method;
-      if (this['_' + method]) {
-        this['_' + method](e.data.params);
+    if (!this._proxy || !this._proxy.addEventListener) return;
+    // addEventListener instead of assigning onmessage, so the listener does
+    // not clobber (or get clobbered by) other listeners on the worker scope
+    this._proxy.addEventListener('message', (e) => {
+      const data = e.data;
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        typeof data.method !== 'string'
+      ) {
+        return;
       }
-      else {
-        // console.log('[EmailClientController::onmessage]: method not implemented: ', method);
+      // resolveDispatchTarget also rejects functions inherited from
+      // Object.prototype: '_' + '_defineSetter__' would otherwise resolve to
+      // __defineSetter__ and throw out of this listener
+      const handler = resolveDispatchTarget(
+        this,
+        '_' + data.method,
+        NON_DISPATCHABLE_HANDLERS
+      );
+      if (handler) {
+        // Normalize null to undefined so handlers' destructuring defaults apply
+        handler.call(this, data.params == null ? undefined : data.params);
       }
-    };
+      // NOTE: unimplemented methods are silently ignored, the message may be
+      // intended for another controller sharing the worker scope
+    });
   }
 
   _emailStats(stats) {
-    if(this.onstats) {
+    if (!stats || typeof stats !== 'object') {
+      return;
+    }
+    if (this.onstats) {
       this.onstats(stats.name, stats.value);
     }
   }
 
   _getThreadRowDisplayInfo(params) {
     // console.log('[EmailClientController::_getThreadRowDisplayInfo]: ', params);
+    if (!params || !Array.isArray(params.tris)) {
+      return;
+    }
     var trdis = {};
     params.tris.forEach((thread) => {
-      if (thread.value !== undefined && thread.value.list !== undefined && this.loadThreadListView) {
-        trdis[thread.key] = this.loadThreadListView(thread.value.list, params.supportedTemplates);
+      if (
+        thread &&
+        thread.value != null &&
+        thread.value.list !== undefined &&
+        this.loadThreadListView
+      ) {
+        trdis[thread.key] = this.loadThreadListView(
+          thread.value.list,
+          params.supportedTemplates
+        );
       }
     });
     // Notify the client
     this._proxy.postMessage({
       method: 'getThreadRowDisplayInfoCallback',
-      params: trdis
+      params: trdis,
     });
   }
 }
