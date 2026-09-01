@@ -30,7 +30,7 @@
     "test": "node test/smoke.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write src/ test/ *.mjs"
+    "format": "prettier --write src/ test/ *.mjs *.md"
   },
   "keywords": [
     "redsift",
