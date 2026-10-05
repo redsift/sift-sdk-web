@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.0.1
 
 - Add `params.completed` to `loadViewCallback`: `false` for an HTML preview
   while promised data is pending, `true` for synchronous and resolved results,

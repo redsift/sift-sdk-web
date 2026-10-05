@@ -1,6 +1,6 @@
 {
   "name": "@redsift/sift-sdk-web",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "SDK for developing web-based Sifts.",
   "main": "dist/sift-sdk-web.mjs",
   "module": "dist/sift-sdk-web.mjs",
