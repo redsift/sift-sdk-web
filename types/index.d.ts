@@ -192,6 +192,8 @@ export class SiftController {
    * Called by the client to load a view. Implement it. Returning nothing, or
    * a `data` promise that rejects, reports `loadViewFailedCallback` to the
    * client rather than leaving the view waiting.
+   * The SDK's `loadViewCallback` sets `params.completed` to false for an HTML
+   * preview and true for synchronous or resolved results, even without data.
    */
   loadView?(request: LoadViewRequest): LoadViewResult;
 }

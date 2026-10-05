@@ -755,6 +755,11 @@ async function main() {
     params: { type: 'summary', sizeClass: 'full' },
   });
   assert.strictEqual(last(workerPosts).method, 'loadViewCallback');
+  assert.strictEqual(
+    last(workerPosts).params.completed,
+    false,
+    'preview is not completed'
+  );
   assert.deepStrictEqual(
     last(workerPosts).params.result,
     { html: 'index.html' },
@@ -766,6 +771,63 @@ async function main() {
     { html: 'index.html', data: { rows: 1 } },
     'data callback after promise resolves'
   );
+  assert.strictEqual(
+    last(workerPosts).params.completed,
+    true,
+    'resolved data completes the request'
+  );
+
+  // Completion is independent of whether the view needs a data payload.
+  for (const result of [
+    { html: 'index.html' },
+    { html: 'index.html', data: undefined },
+  ]) {
+    makeFakeWorkerScope();
+    createSiftController({ loadView: () => result });
+    workerDeliver({
+      method: 'loadView',
+      params: { type: 'summary', sizeClass: 'full' },
+    });
+    assert.strictEqual(
+      workerPosts.length,
+      1,
+      'synchronous result sends one callback'
+    );
+    assert.strictEqual(
+      last(workerPosts).params.completed,
+      true,
+      'HTML-only result is completed'
+    );
+    assert.deepStrictEqual(
+      last(workerPosts).params.result,
+      result,
+      'result shape is preserved'
+    );
+  }
+  for (const html of ['index.html', undefined]) {
+    makeFakeWorkerScope();
+    createSiftController({
+      loadView: () => ({ html, data: Promise.resolve(undefined) }),
+    });
+    workerDeliver({
+      method: 'loadView',
+      params: { type: 'summary', sizeClass: 'full' },
+    });
+    assert.strictEqual(
+      workerPosts.length,
+      html ? 1 : 0,
+      'preview only when HTML is available'
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    assert.deepStrictEqual(
+      workerPosts.map((m) => m.params.completed),
+      html ? [false, true] : [true]
+    );
+    assert.deepStrictEqual(last(workerPosts).params.result, {
+      html,
+      data: undefined,
+    });
+  }
 
   // a rejected data promise is reported instead of leaving the view waiting.
   // The html still goes out first, so the client can already have loaded the
@@ -788,6 +850,11 @@ async function main() {
     'html is delivered before the rejection is reported'
   );
   assert.deepStrictEqual(workerPosts[0].params.result, { html: 'index.html' });
+  assert.strictEqual(
+    workerPosts[0].params.completed,
+    false,
+    'rejected data never completes the preview'
+  );
   assert.strictEqual(last(workerPosts).params.error.message, 'boom');
 
   // ...whereas with no html to send first, nothing precedes the failure, so
