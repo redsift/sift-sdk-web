@@ -195,7 +195,7 @@ The client drives the whole sequence; both halves only respond.
 | --- | ------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | 1   | client → controller | `init`                                               | The SDK opens the sift's storage, then replies `initCallback`.                                                          |
 | 2   | client → controller | `initPlugins`, `loadView`, `startPlugins`            | Sent on `initCallback`. Your `loadView({ type, sizeClass, params })` runs.                                              |
-| 3   | controller → client | `loadViewCallback`                                   | Carries `{ html, data }`. Sent twice when `html` accompanies a `data` promise: once with the HTML, again with the data. |
+| 3   | controller → client | `loadViewCallback`                                   | Carries `params.completed` and `result: { html, data }`. A promised-data HTML preview has `completed: false`; synchronous results and resolved data have `completed: true`. |
 | 4   | client → view       | _(iframe `src` set to the sift's web root + `html`)_ | The view page loads and constructs `SiftView` / mounts the hook.                                                        |
 | 5   | client → view       | `_initPlugins`, `presentView`, `_startPlugins`       | Sent on iframe load. Your `presentView(params)` runs, `params.data` being what step 3 delivered.                        |
 
@@ -211,6 +211,20 @@ accompanies a `data` promise, though, the HTML goes out as soon as `loadView`
 returns — so the client may already have loaded the view by the time the
 rejection arrives, leaving it showing its shell with no data. Do not assume
 failure precedes view creation.
+
+The SDK sets `params.completed` independently of `result.data`. A synchronous
+`{ html }` result is complete even though it has no data property; a promise
+resolving to `undefined` is also complete. An HTML preview is not complete,
+and a rejected promise reports `loadViewFailedCallback` without a completed
+success callback. Hosts should wait for `completed: true` before presenting
+data-dependent views or releasing a serialized load request.
+
+This is an additive controller-to-client field: the existing result payload,
+callback count and ordering stay unchanged for older hosts. Older SDK bundles
+omit it, and their HTML-only previews cannot be distinguished from synchronous
+HTML-only completion. Rebuild and deploy consuming sifts with the updated SDK
+to remove that ambiguity; publishing the package alone cannot update already
+bundled controllers.
 
 ## Protocol reference
 
@@ -253,7 +267,7 @@ your `loadThreadListView`, answered with `getThreadRowDisplayInfoCallback`).
 | `method`                 | Payload                                                           | Sent by                                                               |
 | ------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `initCallback`           | `result`: the `init` params                                       | the SDK, after storage is open                                        |
-| `loadViewCallback`       | `params: { user, sift, type, sizeClass, result: { html, data } }` | the SDK, when `loadView` succeeds                                     |
+| `loadViewCallback`       | `params: { user, sift, type, sizeClass, completed, result: { html, data } }` | the SDK; `completed: false` for an HTML preview, `true` for a synchronous or resolved result |
 | `loadViewFailedCallback` | `params: { user, sift, type, sizeClass, error: { message } }`     | the SDK, when `loadView` throws, returns a non-object, or rejects     |
 | `notifyView`             | `params: { topic, value }`                                        | `controller.publish(topic, value)` — the client relays it to the view |
 | `notifyClient`           | `params: { topic, value }`                                        | `controller.emailclient.goto(...)` / `.close()`                       |

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Add `params.completed` to `loadViewCallback`: `false` for an HTML preview
+  while promised data is pending, `true` for synchronous and resolved results,
+  including HTML-only results and promises resolving to `undefined`. Result
+  payloads and callback ordering are unchanged. Consuming sifts must be rebuilt
+  with this SDK to expose the signal to their host.
+
 ## 3.0.0
 
 The first release since the 2.0.3 published in 2021. It contains three rounds

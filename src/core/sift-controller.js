@@ -129,7 +129,7 @@ export default class SiftController {
     this._proxy.close();
   }
 
-  _triggerSiftViewInit(params, _result) {
+  _triggerSiftViewInit(params, _result, completed = true) {
     this._proxy.postMessage({
       method: 'loadViewCallback',
       params: {
@@ -137,6 +137,7 @@ export default class SiftController {
         sift: { guid: this._guid },
         type: params.type,
         sizeClass: params.sizeClass,
+        completed,
         result: _result,
       },
     });
@@ -203,7 +204,7 @@ export default class SiftController {
 
     if (result.data && 'function' === typeof result.data.then) {
       if (result.html) {
-        this._triggerSiftViewInit(params, { html: result.html });
+        this._triggerSiftViewInit(params, { html: result.html }, false);
       }
       result.data
         .then((data) => {
